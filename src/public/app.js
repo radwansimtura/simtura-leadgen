@@ -810,16 +810,16 @@ async function renderSettings() {
       <!-- Apollo CSV Upload -->
       <div class="settings-panel" style="grid-column:1/-1;">
         <div class="settings-title">Apollo.io Prospect Import</div>
-        <p style="font-size:13px;color:#64748b;margin-bottom:20px;line-height:1.6;">
-          Export contacts from Apollo.io as a CSV, then upload the file here. Duplicates are skipped automatically.
+        <p style="font-size:13px;color:#64748b;margin-bottom:16px;line-height:1.6;">
+          Export contacts from Apollo.io as a CSV, then drop it below. Duplicates are skipped automatically.
         </p>
 
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
-          <label style="font-size:12.5px;font-weight:600;color:#374151;">Upload Apollo CSV</label>
-          <input type="file" id="csvFileInput" accept=".csv" style="font-size:13px;">
-          <button class="btn btn-primary" onclick="uploadApolloCSV()" id="csvUploadBtn">
-            ⬆ Upload &amp; Import
-          </button>
+        <div id="csvDropZone" onclick="document.getElementById('csvFileInput').click()"
+          style="border:2px dashed #cbd5e1;border-radius:10px;padding:32px;text-align:center;cursor:pointer;transition:background .15s,border-color .15s;margin-bottom:12px;">
+          <div style="font-size:28px;margin-bottom:8px;">+</div>
+          <div style="font-weight:600;color:#374151;margin-bottom:4px;">Drop Apollo CSV here</div>
+          <div style="font-size:12px;color:#94a3b8;">or click to browse</div>
+          <input type="file" id="csvFileInput" accept=".csv" style="display:none;">
         </div>
         <p style="font-size:12px;color:#94a3b8;margin-bottom:0;">
           In Apollo: Search → People → filter by title → Export → Export to CSV
@@ -837,22 +837,28 @@ async function renderSettings() {
         <button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="navigate('add')">+ Add Prospects</button>
       </div>
     </div>`;
+
+  initCsvDropZone();
 }
 
-async function uploadApolloCSV() {
-  const btn      = document.getElementById('csvUploadBtn');
+async function uploadApolloCSV(file) {
   const resultEl = document.getElementById('csvResult');
+  const dropZone = document.getElementById('csvDropZone');
   const fileIn   = document.getElementById('csvFileInput');
+  const target   = file || fileIn.files[0];
 
-  if (!fileIn.files.length) { toast('Please select a CSV file first', 'error'); return; }
+  if (!target) { toast('Please select a CSV file first', 'error'); return; }
 
-  btn.textContent = 'Importing…'; btn.disabled = true;
-  resultEl.style.display = 'block';
-  resultEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:#64748b;"><div class="spinner"></div> Importing contacts…</div>`;
+  dropZone.style.background = '#f8fafc';
+  dropZone.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;gap:8px;color:#64748b;"><div class="spinner"></div> Importing contacts…</div>`;
+  resultEl.style.display = 'none';
 
   try {
-    const csvText = await fileIn.files[0].text();
+    const csvText = await target.text();
     const r = await api('/import-csv', 'POST', { csvText });
+    dropZone.innerHTML = `<div style="font-size:28px;margin-bottom:8px;">+</div><div style="font-weight:600;color:#374151;margin-bottom:4px;">Drop Apollo CSV here</div><div style="font-size:12px;color:#94a3b8;">or click to browse</div><input type="file" id="csvFileInput" accept=".csv" style="display:none;" onchange="uploadApolloCSV(this.files[0])">`;
+    dropZone.style.background = '';
+    resultEl.style.display = 'block';
     resultEl.innerHTML = `
       <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 16px;line-height:1.8;">
         <div style="font-weight:700;color:#15803d;margin-bottom:4px;">Import complete</div>
@@ -865,13 +871,30 @@ async function uploadApolloCSV() {
       </div>`;
     if (r.added > 0) toast(`${r.added} prospects imported!`, 'success');
     else toast('No new prospects found (all duplicates or no emails)', 'info');
-    fileIn.value = '';
   } catch (err) {
+    resultEl.innerHTML = `<div style="color:#dc2626;font-size:13px;">Error: ${err.message}</div>`;
+    dropZone.style.background = '';
+    dropZone.innerHTML = `<div style="font-size:28px;margin-bottom:8px;">+</div><div style="font-weight:600;color:#374151;margin-bottom:4px;">Drop Apollo CSV here</div><div style="font-size:12px;color:#94a3b8;">or click to browse</div><input type="file" id="csvFileInput" accept=".csv" style="display:none;" onchange="uploadApolloCSV(this.files[0])">`;
+    resultEl.style.display = 'block';
     resultEl.innerHTML = `<div style="color:#dc2626;font-size:13px;">Error: ${err.message}</div>`;
     toast(err.message, 'error');
   }
+}
 
-  btn.textContent = '⬆ Upload & Import'; btn.disabled = false;
+function initCsvDropZone() {
+  const zone = document.getElementById('csvDropZone');
+  if (!zone) return;
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.background = '#f0f9ff'; zone.style.borderColor = '#6366f1'; });
+  zone.addEventListener('dragleave', () => { zone.style.background = ''; zone.style.borderColor = '#cbd5e1'; });
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.style.background = ''; zone.style.borderColor = '#cbd5e1';
+    const file = e.dataTransfer.files[0];
+    if (file) uploadApolloCSV(file);
+  });
+  zone.querySelector('#csvFileInput').addEventListener('change', function() {
+    if (this.files[0]) uploadApolloCSV(this.files[0]);
+  });
 }
 
 async function saveSettings(e) {
