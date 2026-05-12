@@ -245,6 +245,90 @@ router.post('/import-apollo', async (req, res) => {
   }
 });
 
+// ── Apollo CSV upload ─────────────────────────────────────────────────────────
+
+const SCHOOL_KW = ['college', 'university', 'school', 'institute', 'academy', 'training center', 'community college'];
+const AGENCY_KW = ['fire', 'ems', 'emergency medical', 'department', 'county', 'city of', 'district', 'rescue', 'bureau', 'ambulance', 'medic'];
+
+function detectCsvType(orgName, industry) {
+  const n = (orgName + ' ' + industry).toLowerCase();
+  if (SCHOOL_KW.some(k => n.includes(k))) return 'school';
+  if (AGENCY_KW.some(k => n.includes(k))) return 'agency';
+  if (n.includes('higher education') || n.includes('education')) return 'school';
+  return 'agency';
+}
+
+function splitCsvLine(line) {
+  const result = []; let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQ = !inQ; }
+    else if (ch === ',' && !inQ) { result.push(cur); cur = ''; }
+    else { cur += ch; }
+  }
+  result.push(cur);
+  return result;
+}
+
+function parseApolloCSV(text) {
+  const lines   = text.trim().split('\n');
+  const headers = splitCsvLine(lines[0]).map(h => h.trim().replace(/^"|"$/g, ''));
+  return lines.slice(1).filter(l => l.trim()).map(line => {
+    const vals = splitCsvLine(line);
+    const obj  = {};
+    headers.forEach((h, i) => { obj[h] = (vals[i] || '').trim().replace(/^"|"$/g, ''); });
+    return obj;
+  });
+}
+
+router.post('/import-csv', (req, res) => {
+  const { csvText } = req.body;
+  if (!csvText) return res.status(400).json({ error: 'csvText is required' });
+
+  let rows;
+  try { rows = parseApolloCSV(csvText); } catch (e) {
+    return res.status(400).json({ error: 'Could not parse CSV: ' + e.message });
+  }
+
+  const existing = new Set(
+    db.db.prepare('SELECT email FROM prospects').all().map(r => r.email.toLowerCase())
+  );
+
+  let added = 0, skipped = 0, noEmail = 0;
+
+  for (const row of rows) {
+    const email       = (row['Email'] || '').toLowerCase().trim();
+    const firstName   = row['First Name'] || '';
+    const lastName    = row['Last Name']  || '';
+    const contactName = `${firstName} ${lastName}`.trim();
+    const title       = row['Title']        || '';
+    const orgName     = row['Company Name'] || contactName;
+    const industry    = row['Industry']     || '';
+
+    if (!email || !email.includes('@')) { noEmail++; continue; }
+    if (existing.has(email))            { skipped++;  continue; }
+
+    try {
+      db.createProspect({
+        name:          orgName,
+        organization:  orgName,
+        type:          detectCsvType(orgName, industry),
+        email,
+        contact_name:  contactName,
+        contact_title: title,
+        notes:         `Imported from Apollo.io CSV on ${new Date().toISOString().split('T')[0]}`,
+      });
+      existing.add(email);
+      added++;
+    } catch (err) {
+      if (err.message.includes('UNIQUE constraint')) skipped++;
+    }
+  }
+
+  if (added > 0) db.logActivity('apollo_csv_import', JSON.stringify({ added, skipped, file: 'web-upload' }));
+  res.json({ added, skipped, noEmail, total: rows.length });
+});
+
 // ── Activity ──────────────────────────────────────────────────────────────────
 
 router.get('/activity', (req, res) => {

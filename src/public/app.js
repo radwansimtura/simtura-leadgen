@@ -807,24 +807,24 @@ async function renderSettings() {
         </div>
       </div>
 
-      <!-- Apollo Import -->
+      <!-- Apollo CSV Upload -->
       <div class="settings-panel" style="grid-column:1/-1;">
         <div class="settings-title">Apollo.io Prospect Import</div>
-        <p style="font-size:13px;color:#64748b;margin-bottom:16px;line-height:1.6;">
-          Searches Apollo.io for EMS Directors, Training Chiefs, Program Directors and similar titles.
-          Deduplicates against your existing pipeline automatically.
+        <p style="font-size:13px;color:#64748b;margin-bottom:20px;line-height:1.6;">
+          Export contacts from Apollo.io as a CSV, then upload the file here. Duplicates are skipped automatically.
         </p>
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <label style="font-size:12.5px;font-weight:600;color:#374151;">Pages to fetch</label>
-            <input id="apolloPages" type="number" min="1" max="50" value="10" class="input" style="width:70px;">
-            <span style="font-size:12px;color:#94a3b8;">× 25 results = up to 250 contacts</span>
-          </div>
-          <button class="btn btn-primary" onclick="runApolloImport()" id="apolloBtn">
-            ⬇ Import from Apollo
+
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+          <label style="font-size:12.5px;font-weight:600;color:#374151;">Upload Apollo CSV</label>
+          <input type="file" id="csvFileInput" accept=".csv" style="font-size:13px;">
+          <button class="btn btn-primary" onclick="uploadApolloCSV()" id="csvUploadBtn">
+            ⬆ Upload &amp; Import
           </button>
         </div>
-        <div id="apolloResult" style="margin-top:14px;font-size:13px;display:none;"></div>
+        <p style="font-size:12px;color:#94a3b8;margin-bottom:0;">
+          In Apollo: Search → People → filter by title → Export → Export to CSV
+        </p>
+        <div id="csvResult" style="margin-top:14px;font-size:13px;display:none;"></div>
       </div>
 
       <!-- Prospects -->
@@ -839,35 +839,39 @@ async function renderSettings() {
     </div>`;
 }
 
-async function runApolloImport() {
-  const btn        = document.getElementById('apolloBtn');
-  const resultEl   = document.getElementById('apolloResult');
-  const maxPages   = parseInt(document.getElementById('apolloPages')?.value || '10', 10);
+async function uploadApolloCSV() {
+  const btn      = document.getElementById('csvUploadBtn');
+  const resultEl = document.getElementById('csvResult');
+  const fileIn   = document.getElementById('csvFileInput');
+
+  if (!fileIn.files.length) { toast('Please select a CSV file first', 'error'); return; }
 
   btn.textContent = 'Importing…'; btn.disabled = true;
   resultEl.style.display = 'block';
-  resultEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:#64748b;"><div class="spinner"></div> Fetching from Apollo — this takes ~${maxPages} seconds due to rate limiting…</div>`;
+  resultEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:#64748b;"><div class="spinner"></div> Importing contacts…</div>`;
 
   try {
-    const r = await api('/import-apollo', 'POST', { maxPages });
+    const csvText = await fileIn.files[0].text();
+    const r = await api('/import-csv', 'POST', { csvText });
     resultEl.innerHTML = `
       <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 16px;line-height:1.8;">
         <div style="font-weight:700;color:#15803d;margin-bottom:4px;">Import complete</div>
         <div style="font-size:13px;color:#166534;">
           ✓ Added: <b>${r.added}</b> new prospects<br>
           — Skipped (already in pipeline): <b>${r.skipped}</b><br>
-          — No email found: <b>${r.noEmail}</b>
-          ${r.errors ? `<br>✗ Errors: <b>${r.errors}</b>` : ''}
+          — No email found: <b>${r.noEmail}</b><br>
+          — Total rows in file: <b>${r.total}</b>
         </div>
       </div>`;
-    if (r.added > 0) toast(`${r.added} prospects imported from Apollo!`, 'success');
+    if (r.added > 0) toast(`${r.added} prospects imported!`, 'success');
     else toast('No new prospects found (all duplicates or no emails)', 'info');
+    fileIn.value = '';
   } catch (err) {
     resultEl.innerHTML = `<div style="color:#dc2626;font-size:13px;">Error: ${err.message}</div>`;
     toast(err.message, 'error');
   }
 
-  btn.textContent = '⬇ Import from Apollo'; btn.disabled = false;
+  btn.textContent = '⬆ Upload & Import'; btn.disabled = false;
 }
 
 async function saveSettings(e) {
