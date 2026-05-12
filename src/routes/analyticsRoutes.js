@@ -9,7 +9,16 @@ router.get('/ga', async (req, res) => {
 
   try {
     const { BetaAnalyticsDataClient } = require('@google-analytics/data');
-    const client = new BetaAnalyticsDataClient();
+
+    let client;
+    if (process.env.GOOGLE_CREDENTIALS_JSON) {
+      const credentials = JSON.parse(
+        Buffer.from(process.env.GOOGLE_CREDENTIALS_JSON, 'base64').toString('utf8')
+      );
+      client = new BetaAnalyticsDataClient({ credentials });
+    } else {
+      client = new BetaAnalyticsDataClient(); // falls back to GOOGLE_APPLICATION_CREDENTIALS file
+    }
 
     const [dailyRes, pagesRes, sourcesRes] = await Promise.all([
       client.runReport({
