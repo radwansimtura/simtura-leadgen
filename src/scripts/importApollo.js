@@ -49,13 +49,15 @@ function detectType(orgName) {
 async function fetchPage(page) {
   const res = await fetch(APOLLO_URL, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache',
+      'X-Api-Key':    APOLLO_KEY,
+    },
     body: JSON.stringify({
-      api_key:       APOLLO_KEY,
       person_titles: JOB_TITLES,
       page,
       per_page:      PER_PAGE,
-      // Only return contacts Apollo has emails for
       contact_email_status: ['verified', 'guessed', 'unverified'],
     }),
   });
