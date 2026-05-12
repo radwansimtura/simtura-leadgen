@@ -159,22 +159,28 @@ async function processDailyEmails() {
 
   const due = db.getDueProspects().slice(0, remaining);
   let sent = 0, skipped = 0, errors = 0;
+  const BATCH = 5;
 
-  for (const prospect of due) {
-    try {
-      const result = await sendSequenceEmail(prospect);
-      if (result.sent) {
-        sent++;
-        console.log(`[Email] Sent step ${result.step} to ${prospect.organization} — "${result.subject}"`);
+  for (let i = 0; i < due.length; i += BATCH) {
+    const batch = due.slice(i, i + BATCH);
+    const results = await Promise.allSettled(batch.map(p => sendSequenceEmail(p)));
+
+    for (let j = 0; j < results.length; j++) {
+      const r = results[j];
+      if (r.status === 'fulfilled') {
+        if (r.value.sent) {
+          sent++;
+          console.log(`[Email] Sent step ${r.value.step} to ${batch[j].organization} — "${r.value.subject}"`);
+        } else {
+          skipped++;
+        }
       } else {
-        skipped++;
+        errors++;
+        console.error(`[Email] Error for prospect ${batch[j].id}:`, r.reason?.message);
       }
-      // Brief pause between sends to avoid rate limits
-      await new Promise(r => setTimeout(r, 500));
-    } catch (err) {
-      errors++;
-      console.error(`[Email] Error for prospect ${prospect.id}:`, err.message);
     }
+
+    if (i + BATCH < due.length) await new Promise(r => setTimeout(r, 500));
   }
 
   console.log(`[Email] Daily run complete: ${sent} sent, ${skipped} skipped, ${errors} errors.`);
