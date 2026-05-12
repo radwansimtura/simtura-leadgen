@@ -152,8 +152,9 @@ router.put('/replies/:id/action', (req, res) => {
     };
     const newStatus = statusMap[action];
     if (newStatus) {
+      const prospect = db.getProspectById(prospectId);
       db.updateProspect(prospectId, { status: newStatus, paused: action === 'booked' ? 1 : 0 });
-      db.logActivity('status_changed', JSON.stringify({ prospect_id: prospectId, to: newStatus }));
+      db.logActivity('status_changed', JSON.stringify({ prospect_id: prospectId, org: prospect?.organization, to: newStatus }));
     }
   }
 

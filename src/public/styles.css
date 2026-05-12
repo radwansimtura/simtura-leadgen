@@ -347,7 +347,6 @@ tr:hover td { background: var(--surface-alt); }
 .panel-title  { font-size:13.5px;font-weight:700;color:var(--text); }
 .panel-body   { padding:16px 20px 20px; }
 
-.overview-grid { display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px; }
 .overview-left, .overview-right { display:flex;flex-direction:column;gap:16px; }
 
 .funnel { display:flex;flex-direction:column;gap:10px; }

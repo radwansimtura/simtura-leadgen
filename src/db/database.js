@@ -316,7 +316,7 @@ function getPipelineCounts() {
   const rows = db.prepare(
     "SELECT status, COUNT(*) as count FROM prospects GROUP BY status"
   ).all();
-  const counts = { new: 0, contacted: 0, engaged: 0, replied: 0, booked: 0, unsubscribed: 0 };
+  const counts = { new: 0, contacted: 0, engaged: 0, replied: 0, booked: 0, bounced: 0, unsubscribed: 0 };
   for (const r of rows) counts[r.status] = r.count;
   return counts;
 }

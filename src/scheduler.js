@@ -13,7 +13,15 @@ const { generateWeeklyPosts } = require('./linkedin/generator');
 const { sendDailyDigest }    = require('./digest');
 const db                     = require('./db/database');
 
+let _jobRunning = false;
+
 async function runDailyJob() {
+  if (_jobRunning) {
+    console.log('[Scheduler] Job already in progress — skipping concurrent run.');
+    return;
+  }
+  _jobRunning = true;
+
   console.log('\n[Scheduler] ══════════════════════════════════════════');
   console.log('[Scheduler] Daily job started at', new Date().toISOString());
 
@@ -23,6 +31,7 @@ async function runDailyJob() {
   const lastRunDate = db.getConfig('last_run_date');
   if (lastRunDate === today) {
     console.log('[Scheduler] Already ran today — exiting.');
+    _jobRunning = false;
     return;
   }
 
@@ -78,6 +87,7 @@ async function runDailyJob() {
 
   console.log('[Scheduler] Daily job complete.');
   console.log('[Scheduler] ══════════════════════════════════════════\n');
+  _jobRunning = false;
 }
 
 // Schedule: every day at 08:00 in the server's local timezone

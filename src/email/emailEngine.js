@@ -80,7 +80,7 @@ async function generateEmail(prospect, step, retries = 3) {
       }
     } catch (err) {
       lastErr = err;
-      if (attempt < retries && (err.status === 529 || err.status === 529 || String(err.message).includes('overloaded'))) {
+      if (attempt < retries && (err.status === 529 || err.status === 429 || String(err.message).includes('overloaded'))) {
         await new Promise(r => setTimeout(r, attempt * 2000));
       } else {
         throw err;
