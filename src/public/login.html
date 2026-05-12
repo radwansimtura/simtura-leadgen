@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simtura Command — Sign In</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: #f0f4f8;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .bg-pattern {
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(8,70,172,0.12) 0%, transparent 60%),
+        #f0f4f8;
+    }
+    .card {
+      position: relative; z-index: 1;
+      background: #fff;
+      border-radius: 16px;
+      padding: 48px 44px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06), 0 8px 32px rgba(0,0,0,.08);
+    }
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 36px;
+    }
+    .logo-mark {
+      width: 38px; height: 38px;
+      background: #0846AC;
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-weight: 700; font-size: 17px; letter-spacing: -0.5px;
+    }
+    .logo-text { font-size: 18px; font-weight: 700; color: #0f172a; letter-spacing: -0.3px; }
+    .logo-text span { color: #0846AC; }
+    h1 { font-size: 22px; font-weight: 700; color: #0f172a; margin-bottom: 6px; letter-spacing: -0.3px; }
+    .subtitle { font-size: 14px; color: #64748b; margin-bottom: 32px; }
+    label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+    .input {
+      width: 100%; padding: 10px 14px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 8px;
+      font-family: inherit; font-size: 14px; color: #0f172a;
+      outline: none; transition: border-color .15s, box-shadow .15s;
+      margin-bottom: 18px;
+    }
+    .input:focus { border-color: #0846AC; box-shadow: 0 0 0 3px rgba(8,70,172,.1); }
+    .btn {
+      width: 100%; padding: 11px;
+      background: #0846AC; color: #fff;
+      border: none; border-radius: 8px;
+      font-family: inherit; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: background .15s, transform .1s;
+      margin-top: 4px;
+    }
+    .btn:hover { background: #0638a0; }
+    .btn:active { transform: translateY(1px); }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
+    .error {
+      background: #fef2f2; border: 1px solid #fecaca;
+      color: #dc2626; font-size: 13px;
+      padding: 10px 14px; border-radius: 8px;
+      margin-bottom: 16px; display: none;
+    }
+    .footer { text-align: center; font-size: 12px; color: #94a3b8; margin-top: 28px; }
+  </style>
+</head>
+<body>
+  <div class="bg-pattern"></div>
+  <div class="card">
+    <div class="logo">
+      <div class="logo-mark">S</div>
+      <div class="logo-text">Simtura <span>Command</span></div>
+    </div>
+    <h1>Welcome back</h1>
+    <p class="subtitle">Internal platform — authorized access only</p>
+    <div class="error" id="errorMsg"></div>
+    <form id="loginForm" onsubmit="handleLogin(event)">
+      <label for="email">Email</label>
+      <input class="input" type="email" id="email" placeholder="you@simtura.ai" required autocomplete="email">
+      <label for="password">Password</label>
+      <input class="input" type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+      <button class="btn" type="submit" id="submitBtn">Sign in</button>
+    </form>
+    <div class="footer">Simtura Command · Internal use only</div>
+  </div>
+
+  <script>
+    async function handleLogin(e) {
+      e.preventDefault();
+      const btn = document.getElementById('submitBtn');
+      const err = document.getElementById('errorMsg');
+      btn.disabled = true; btn.textContent = 'Signing in…';
+      err.style.display = 'none';
+
+      try {
+        const res = await fetch('/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email:    document.getElementById('email').value,
+            password: document.getElementById('password').value,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          window.location.href = '/';
+        } else {
+          err.textContent = data.error || 'Sign in failed';
+          err.style.display = 'block';
+        }
+      } catch {
+        err.textContent = 'Network error. Please try again.';
+        err.style.display = 'block';
+      }
+
+      btn.disabled = false; btn.textContent = 'Sign in';
+    }
+  </script>
+</body>
+</html>

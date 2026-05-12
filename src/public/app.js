@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   Simtura Leads — Dashboard SPA
+   Simtura Command — Dashboard SPA
    Vanilla JS, no frameworks, no dependencies.
    ═══════════════════════════════════════════════════════════════ */
 
@@ -9,12 +9,18 @@ async function api(path, method = 'GET', body = null) {
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch('/api' + path, opts);
+  if (res.status === 401) { window.location.href = '/login'; return; }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || res.statusText);
   }
   if (res.status === 204) return null;
   return res.json();
+}
+
+async function logout() {
+  await fetch('/auth/logout', { method: 'POST' });
+  window.location.href = '/login';
 }
 
 // ── Toast system ──────────────────────────────────────────────────────────────
@@ -133,13 +139,16 @@ function empty(icon, text) {
 let currentView = 'overview';
 
 const VIEW_TITLES = {
-  overview: 'Overview',
-  pipeline: 'Pipeline',
+  overview:  'Overview',
+  pipeline:  'Pipeline',
   sequences: 'Sequences',
-  replies: 'Replies',
-  linkedin: 'LinkedIn Queue',
-  add: 'Add Prospects',
-  settings: 'Settings',
+  replies:   'Replies',
+  outreach:  'Outreach Stats',
+  linkedin:  'LinkedIn Queue',
+  analytics: 'Analytics',
+  revenue:   'Revenue',
+  add:       'Add Prospects',
+  settings:  'Settings',
 };
 
 function navigate(view) {
@@ -155,14 +164,17 @@ function navigate(view) {
   document.getElementById('topbarActions').innerHTML = '';
 
   const c = document.getElementById('content');
-  c.innerHTML = loading();
+  c.innerHTML = `<div class="loading-state"><div class="spinner"></div> Loading…</div>`;
 
   const renderers = {
     overview:  renderOverview,
     pipeline:  renderPipeline,
     sequences: renderSequences,
     replies:   renderReplies,
+    outreach:  renderOutreach,
     linkedin:  renderLinkedIn,
+    analytics: renderAnalytics,
+    revenue:   renderRevenue,
     add:       renderAdd,
     settings:  renderSettings,
   };
@@ -920,20 +932,216 @@ async function runNow() {
   btn.textContent = '▶ Run Daily Job Now'; btn.disabled = false;
 }
 
+// ── View: Outreach Stats ──────────────────────────────────────────────────────
+
+async function renderOutreach() {
+  const [overview, sent] = await Promise.all([
+    api('/overview').catch(() => ({})),
+    api('/activity?limit=200').catch(() => []),
+  ]);
+
+  const emailsSent   = sent.filter(a => a.action === 'email_sent').length;
+  const repliesCount = sent.filter(a => a.action === 'reply_received').length;
+  const booked       = sent.filter(a => a.action === 'status_changed' && a.details?.includes('"to":"booked"')).length;
+  const replyRate    = emailsSent ? ((repliesCount / emailsSent) * 100).toFixed(1) : '0.0';
+
+  const stepCounts = [0,0,0,0,0];
+  sent.filter(a => a.action === 'email_sent').forEach(a => {
+    try { const s = JSON.parse(a.details).step; if (s >= 1 && s <= 5) stepCounts[s-1]++; } catch {}
+  });
+
+  document.getElementById('content').innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 8h13M8 1.5l6.5 6.5-6.5 6.5"/></svg></div>
+        <div class="stat-value">${overview.emailsSentWeek || 0}</div>
+        <div class="stat-label">Emails Sent This Week</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H2a.5.5 0 0 0-.5.5v8A.5.5 0 0 0 2 11h3v2.5l3-2.5h6a.5.5 0 0 0 .5-.5v-8A.5.5 0 0 0 14 2Z"/></svg></div>
+        <div class="stat-value">${repliesCount}</div>
+        <div class="stat-label">Total Replies</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12l4-4 3 3 5-7"/></svg></div>
+        <div class="stat-value">${replyRate}%</div>
+        <div class="stat-label">Reply Rate</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M5 8l2 2 4-4"/></svg></div>
+        <div class="stat-value">${overview.booked || 0}</div>
+        <div class="stat-label">Demos Booked</div>
+      </div>
+    </div>
+
+    <div class="overview-grid">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Emails by Step</span></div>
+        <div class="card-body">
+          ${stepCounts.map((c, i) => `
+            <div class="chart-bar-row">
+              <div class="chart-bar-label">Step ${i+1}</div>
+              <div class="chart-bar-wrap"><div class="chart-bar-fill" style="width:${stepCounts[0] ? (c/Math.max(...stepCounts)*100) : 0}%"></div></div>
+              <div class="chart-bar-val">${c}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Pipeline Summary</span></div>
+        <div class="card-body">
+          ${['new','contacted','engaged','replied','booked','bounced','unsubscribed'].map(s => `
+            <div class="status-row">
+              <span class="status-row-label">${s.charAt(0).toUpperCase()+s.slice(1)}</span>
+              <span class="s-val">${overview.pipeline?.[s] || 0}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── View: Analytics ───────────────────────────────────────────────────────────
+
+async function renderAnalytics() {
+  document.getElementById('content').innerHTML = `<div class="loading-state"><div class="spinner"></div> Fetching analytics…</div>`;
+
+  let data;
+  try { data = await fetch('/api/analytics/ga').then(r => r.json()); }
+  catch { data = { configured: false, message: 'Failed to reach analytics API.' }; }
+
+  if (!data.configured) {
+    document.getElementById('content').innerHTML = `
+      <div class="card" style="max-width:520px;">
+        <div class="card-body" style="text-align:center;padding:48px 32px;">
+          <div style="font-size:38px;margin-bottom:14px;">📊</div>
+          <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px;">Analytics not configured</div>
+          <div style="font-size:13.5px;color:var(--text-3);line-height:1.6;margin-bottom:20px;">${data.message}</div>
+          <div style="background:var(--surface-alt);border-radius:8px;padding:14px;text-align:left;font-size:12.5px;color:var(--text-2);">
+            <b>To enable:</b><br>
+            1. Create a Google service account with Analytics Data API access<br>
+            2. Set <code>GOOGLE_APPLICATION_CREDENTIALS</code> to the JSON key path<br>
+            3. Set <code>GA_PROPERTY_ID</code> to your numeric property ID<br>
+            4. Property ID G-KYWFXDQJDX is your Measurement ID — find the numeric ID in GA4 → Admin → Property Settings
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const maxUsers = Math.max(...data.daily.map(d => d.users), 1);
+  const dailyHTML = data.daily.slice(-14).map(d => `
+    <div class="chart-bar-row">
+      <div class="chart-bar-label">${d.date.slice(4,6)}/${d.date.slice(6,8)}</div>
+      <div class="chart-bar-wrap"><div class="chart-bar-fill" style="width:${(d.users/maxUsers*100).toFixed(1)}%"></div></div>
+      <div class="chart-bar-val">${d.users}</div>
+    </div>`).join('');
+
+  const maxViews = Math.max(...data.pages.map(p => p.views), 1);
+  const pagesHTML = data.pages.slice(0,8).map(p => `
+    <div class="chart-bar-row">
+      <div class="chart-bar-label">${p.path}</div>
+      <div class="chart-bar-wrap"><div class="chart-bar-fill" style="width:${(p.views/maxViews*100).toFixed(1)}%"></div></div>
+      <div class="chart-bar-val">${p.views}</div>
+    </div>`).join('');
+
+  document.getElementById('content').innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="7" r="4"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg></div>
+        <div class="stat-value">${data.totalUsers.toLocaleString()}</div>
+        <div class="stat-label">Visitors (30 days)</div>
+      </div>
+      ${data.sources.slice(0,3).map(s => `
+      <div class="stat-card">
+        <div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 12.5l4-4 3 3 5-7"/></svg></div>
+        <div class="stat-value">${s.sessions.toLocaleString()}</div>
+        <div class="stat-label">${s.channel}</div>
+      </div>`).join('')}
+    </div>
+
+    <div class="analytics-grid">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Daily Visitors (last 14 days)</span></div>
+        <div class="card-body">${dailyHTML}</div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Top Pages</span></div>
+        <div class="card-body">${pagesHTML}</div>
+      </div>
+    </div>`;
+}
+
+// ── View: Revenue ─────────────────────────────────────────────────────────────
+
+async function renderRevenue() {
+  document.getElementById('content').innerHTML = `<div class="loading-state"><div class="spinner"></div> Fetching revenue data…</div>`;
+
+  let data;
+  try { data = await fetch('/api/revenue/summary').then(r => r.json()); }
+  catch { data = { configured: false }; }
+
+  if (!data.configured) {
+    document.getElementById('content').innerHTML = `
+      <div class="card" style="max-width:480px;">
+        <div class="card-body" style="text-align:center;padding:48px 32px;">
+          <div style="font-size:38px;margin-bottom:14px;">💳</div>
+          <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px;">Connect Stripe to see revenue</div>
+          <div style="font-size:13.5px;color:var(--text-3);line-height:1.6;margin-bottom:20px;">Add your Stripe secret key to unlock MRR, subscriber counts, and transaction history.</div>
+          <div style="background:var(--surface-alt);border-radius:8px;padding:14px;text-align:left;font-size:12.5px;color:var(--text-2);">
+            <b>To enable:</b><br>
+            1. Go to Render → Environment<br>
+            2. Add <code>STRIPE_SECRET_KEY</code> = your Stripe secret key (starts with <code>sk_</code>)<br>
+            3. Redeploy — this page will show live data
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const chargesHTML = (data.recentCharges || []).map(c => `
+    <tr>
+      <td>${c.date}</td>
+      <td>${c.description}</td>
+      <td><b>$${c.amount.toFixed(2)}</b> ${c.currency}</td>
+      <td><span class="badge ${c.status === 'succeeded' ? 'badge-green' : 'badge-red'}">${c.status}</span></td>
+    </tr>`).join('');
+
+  document.getElementById('content').innerHTML = `
+    <div class="revenue-grid">
+      <div class="stat-card">
+        <div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5v7M6 6.5c0-1.1.9-2 2-2s2 .9 2 2-2 2-2 2-2 .9-2 2 .9 2 2 2 2-.9 2-2"/></svg></div>
+        <div class="stat-value">$${data.mrr.toLocaleString()}</div>
+        <div class="stat-label">Monthly Recurring Revenue</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="7" r="4"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg></div>
+        <div class="stat-value">${data.activeSubscriptions}</div>
+        <div class="stat-label">Active Subscriptions</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12M4 8h8M6 13h4"/></svg></div>
+        <div class="stat-value">${data.totalCustomers}</div>
+        <div class="stat-label">Total Customers</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Recent Transactions</span></div>
+      <div class="card-body" style="padding:0">
+        <table>
+          <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Status</th></tr></thead>
+          <tbody>${chargesHTML || '<tr><td colspan="4" style="text-align:center;color:var(--text-3);padding:24px;">No transactions yet</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
 // ── System status badge ───────────────────────────────────────────────────────
 
 async function updateSystemStatus() {
   try {
-    const status     = await api('/status');
     const replies    = await api('/overview');
     const openCount  = replies.openReplies || 0;
-    const dot        = document.getElementById('sysDot');
-    const label      = document.getElementById('sysLabel');
     const replyBadge = document.getElementById('replyBadge');
-
-    const msOk = status?.microsoft_graph?.ok;
-    if (msOk) { dot.classList.remove('error'); label.textContent = 'Connected'; }
-    else       { dot.classList.add('error');    label.textContent = 'MS Graph error'; }
 
     if (openCount > 0) {
       replyBadge.style.display = 'inline-block';
@@ -948,7 +1156,19 @@ async function updateSystemStatus() {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Load logged-in user into sidebar
+  try {
+    const res = await fetch('/auth/me');
+    if (res.ok) {
+      const me = await res.json();
+      if (me?.email) {
+        document.getElementById('userEmail').textContent = me.email;
+        document.getElementById('userAvatar').textContent = me.email[0].toUpperCase();
+      }
+    }
+  } catch { /* ignore */ }
+
   // Nav clicks
   document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', () => navigate(item.dataset.view));

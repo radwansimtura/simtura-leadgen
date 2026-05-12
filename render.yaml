@@ -32,6 +32,16 @@ services:
         sync: false
       - key: CLAUDE_MODEL
         value: claude-sonnet-4-6
+      - key: SESSION_SECRET
+        sync: false
+      - key: RADWAN_PASSWORD_HASH
+        sync: false
+      - key: CHARLIE_PASSWORD_HASH
+        sync: false
+      - key: GA_PROPERTY_ID
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
 
   # ── Daily Cron Job (8 AM ET) ────────────────────────────────────────────────
   - type: cron

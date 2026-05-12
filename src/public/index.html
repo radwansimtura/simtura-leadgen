@@ -3,95 +3,93 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Simtura Leads</title>
+  <title>Simtura Command</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="app">
-    <!-- Sidebar -->
     <aside class="sidebar">
       <div class="sidebar-logo">
-        Simtura<span class="accent">Leads</span>
-        <span class="tagline">EMS Partnership Outreach</span>
+        <div class="logo-lockup">
+          <div class="logo-mark">S</div>
+          <div class="logo-name">Simtura <span>Command</span></div>
+        </div>
+        <div class="tagline">EMS Partnership Outreach</div>
       </div>
 
       <nav class="sidebar-nav">
+        <div class="nav-section">Outreach</div>
         <div class="nav-item active" data-view="overview">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-            <rect x="1.5" y="1.5" width="5" height="5" rx="1"/>
-            <rect x="9.5" y="1.5" width="5" height="5" rx="1"/>
-            <rect x="1.5" y="9.5" width="5" height="5" rx="1"/>
-            <rect x="9.5" y="9.5" width="5" height="5" rx="1"/>
-          </svg>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="1.5" width="5" height="5" rx="1"/><rect x="9.5" y="1.5" width="5" height="5" rx="1"/><rect x="1.5" y="9.5" width="5" height="5" rx="1"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/></svg>
           Overview
         </div>
         <div class="nav-item" data-view="pipeline">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M2 3h12M4 8h8M6 13h4"/>
-          </svg>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12M4 8h8M6 13h4"/></svg>
           Pipeline
         </div>
         <div class="nav-item" data-view="sequences">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-            <rect x="1.5" y="3" width="13" height="10" rx="1.5"/>
-            <path d="M5 3V2M11 3V2M1.5 7h13"/>
-          </svg>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M5 3V2M11 3V2M1.5 7h13"/></svg>
           Sequences
         </div>
         <div class="nav-item" data-view="replies">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M14 2H2a.5.5 0 0 0-.5.5v8A.5.5 0 0 0 2 11h3v2.5l3-2.5h6a.5.5 0 0 0 .5-.5v-8A.5.5 0 0 0 14 2Z"/>
-          </svg>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H2a.5.5 0 0 0-.5.5v8A.5.5 0 0 0 2 11h3v2.5l3-2.5h6a.5.5 0 0 0 .5-.5v-8A.5.5 0 0 0 14 2Z"/></svg>
           Replies
           <span id="replyBadge" style="margin-left:auto;background:#ef4444;color:#fff;border-radius:20px;padding:1px 7px;font-size:10px;font-weight:700;display:none;"></span>
         </div>
+        <div class="nav-item" data-view="outreach">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 8h13M8 1.5l6.5 6.5-6.5 6.5"/></svg>
+          Outreach Stats
+        </div>
+
+        <div class="nav-section">Growth</div>
         <div class="nav-item" data-view="linkedin">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-            <rect x="1.5" y="1.5" width="13" height="13" rx="2"/>
-            <path d="M5 7v5M5 4.5v.5M8 12V9c0-1.1.9-2 2-2s2 .9 2 2v3M8 7v5"/>
-          </svg>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="1.5" width="13" height="13" rx="2"/><path d="M5 7v5M5 4.5v.5M8 12V9c0-1.1.9-2 2-2s2 .9 2 2v3M8 7v5"/></svg>
           LinkedIn Queue
         </div>
+        <div class="nav-item" data-view="analytics">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 12.5l4-4 3 3 5-7"/></svg>
+          Analytics
+        </div>
+        <div class="nav-item" data-view="revenue">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5v7M6 6.5c0-1.1.9-2 2-2s2 .9 2 2-2 2-2 2-2 .9-2 2 .9 2 2 2 2-.9 2-2"/></svg>
+          Revenue
+        </div>
+
+        <div class="nav-section">Prospects</div>
         <div class="nav-item" data-view="add">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-            <circle cx="7" cy="6" r="3"/>
-            <path d="M1.5 14c0-2.5 2.5-4 5.5-4"/>
-            <path d="M11.5 10v5M9 12.5h5"/>
-          </svg>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="6" r="3"/><path d="M1.5 14c0-2.5 2.5-4 5.5-4"/><path d="M11.5 10v5M9 12.5h5"/></svg>
           Add Prospects
         </div>
         <div class="nav-item" data-view="settings">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-            <circle cx="8" cy="8" r="2.5"/>
-            <path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M3.4 12.6l.7-.7M11.9 4.1l.7-.7"/>
-          </svg>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M3.4 12.6l.7-.7M11.9 4.1l.7-.7"/></svg>
           Settings
         </div>
       </nav>
 
       <div class="sidebar-footer">
-        <div class="sys-status">
-          <div class="sys-dot" id="sysDot"></div>
-          <span id="sysLabel">System ready</span>
+        <div class="user-row">
+          <div class="user-avatar" id="userAvatar">Y</div>
+          <div class="user-email" id="userEmail">Loading…</div>
+          <button class="logout-btn" onclick="logout()" title="Sign out">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3M11 11l3-3-3-3M14 8H6"/></svg>
+          </button>
         </div>
       </div>
     </aside>
 
-    <!-- Main area -->
     <main class="main">
       <div class="topbar">
-        <h1 id="viewTitle">Overview</h1>
+        <h1 class="topbar-title" id="viewTitle">Overview</h1>
         <div class="topbar-actions" id="topbarActions"></div>
       </div>
-      <div class="content" id="content">
-        <div class="loading-state"><div class="spinner"></div> Loading…</div>
+      <div class="content-area" id="content">
+        <div style="display:flex;align-items:center;gap:10px;color:#94a3b8;padding:40px;"><div class="spinner"></div> Loading…</div>
       </div>
     </main>
   </div>
 
   <div id="toastContainer"></div>
   <div id="modalRoot"></div>
-
   <script src="app.js"></script>
 </body>
 </html>
