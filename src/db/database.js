@@ -25,7 +25,7 @@ db.exec(`
     contact_name  TEXT,
     contact_title TEXT,
     status        TEXT NOT NULL DEFAULT 'new'
-                    CHECK(status IN ('new','contacted','engaged','replied','booked','unsubscribed')),
+                    CHECK(status IN ('new','contacted','engaged','replied','booked','unsubscribed','bounced')),
     sequence_step INTEGER NOT NULL DEFAULT 0,
     paused        INTEGER NOT NULL DEFAULT 0,
     last_contacted TEXT,

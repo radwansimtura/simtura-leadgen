@@ -74,7 +74,7 @@ function typeBadge(type) {
 }
 
 function statusBadge(status) {
-  const labels = { new:'New', contacted:'Contacted', engaged:'Engaged', replied:'Replied', booked:'Booked', unsubscribed:'Unsubscribed' };
+  const labels = { new:'New', contacted:'Contacted', engaged:'Engaged', replied:'Replied', booked:'Booked', unsubscribed:'Unsubscribed', bounced:'Bounced' };
   return badge(status, labels[status] || status);
 }
 
@@ -265,11 +265,12 @@ async function renderPipeline() {
   const prospects = await api('/prospects').catch(err => { toast(err.message, 'error'); return []; });
 
   const columns = [
-    { key: 'new',       label: 'New' },
-    { key: 'contacted', label: 'Contacted' },
-    { key: 'engaged',   label: 'Engaged' },
-    { key: 'replied',   label: 'Replied' },
-    { key: 'booked',    label: 'Booked' },
+    { key: 'new',          label: 'New' },
+    { key: 'contacted',    label: 'Contacted' },
+    { key: 'engaged',      label: 'Engaged' },
+    { key: 'replied',      label: 'Replied' },
+    { key: 'booked',       label: 'Booked' },
+    { key: 'bounced',      label: 'Bounced' },
   ];
 
   const grouped = {};

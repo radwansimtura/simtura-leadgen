@@ -35,9 +35,28 @@ Return ONLY the response text — no subject line, no JSON, just the reply body.
   }
 }
 
+const BOUNCE_SENDERS = ['mailer-daemon@', 'postmaster@', 'mail-daemon@'];
+const BOUNCE_SUBJECTS = ['undeliverable', 'delivery status notification', 'mail delivery failed',
+  'delivery failure', 'failed delivery', 'returned mail', 'delivery has failed', 'unable to deliver'];
+
+function isBounce(msg) {
+  const from = (msg.from?.emailAddress?.address || '').toLowerCase();
+  const subject = (msg.subject || '').toLowerCase();
+  return BOUNCE_SENDERS.some(s => from.includes(s)) ||
+         BOUNCE_SUBJECTS.some(s => subject.includes(s));
+}
+
+// Extract the original recipient email from a bounce message body
+function extractBouncedEmail(body) {
+  const match = body.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g);
+  if (!match) return null;
+  const sendingDomain = (process.env.MS_USER_EMAIL || '').split('@')[1] || 'simtura.ai';
+  return match.find(e => !e.includes(sendingDomain) &&
+    !e.includes('mailer-daemon') && !e.includes('postmaster')) || null;
+}
+
 // Poll inbox and match messages to known prospects
 async function checkForReplies() {
-  // Only check messages from the last 30 days to keep the window reasonable
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
   let messages;
@@ -45,12 +64,29 @@ async function checkForReplies() {
     messages = await getInboxMessages({ since, maxItems: 100 });
   } catch (err) {
     console.error('[Reply] Failed to fetch inbox:', err.message);
-    return { found: 0, error: err.message };
+    return { found: 0, bounces: 0, error: err.message };
   }
 
-  let found = 0;
+  let found = 0, bounces = 0;
 
   for (const msg of messages) {
+    // ── Bounce detection ──────────────────────────────────────────────────────
+    if (isBounce(msg)) {
+      const body = msg.bodyPreview || msg.body?.content || '';
+      const bouncedEmail = extractBouncedEmail(body);
+      if (bouncedEmail) {
+        const prospect = db.getProspectByEmail(bouncedEmail);
+        if (prospect && prospect.status !== 'bounced' && prospect.status !== 'unsubscribed') {
+          db.updateProspect(prospect.id, { status: 'bounced', paused: 1 });
+          db.logActivity('bounced', JSON.stringify({ prospect_id: prospect.id, email: bouncedEmail }));
+          console.log(`[Reply] Bounce detected — paused ${bouncedEmail}`);
+          bounces++;
+        }
+      }
+      continue;
+    }
+
+    // ── Normal reply detection ────────────────────────────────────────────────
     const fromEmail = msg.from?.emailAddress?.address?.toLowerCase();
     if (!fromEmail) continue;
 
@@ -58,29 +94,22 @@ async function checkForReplies() {
     if (!prospect) continue;
     if (prospect.status === 'unsubscribed') continue;
 
-    // Skip if we've already recorded this Graph message
-    const existing = db.db.prepare(
-      'SELECT id FROM replies WHERE graph_message_id = ?'
-    ).get(msg.id);
+    const existing = db.db.prepare('SELECT id FROM replies WHERE graph_message_id = ?').get(msg.id);
     if (existing) continue;
 
     const replyText = msg.bodyPreview || msg.body?.content || '';
     const suggestedResponse = await generateSuggestedResponse(prospect, replyText);
 
     db.recordReply(prospect.id, replyText, msg.id, suggestedResponse);
-
-    // Update prospect status
     db.updateProspect(prospect.id, { status: 'replied', paused: 1 });
-    db.logActivity(
-      'reply_received',
-      JSON.stringify({ prospect_id: prospect.id, org: prospect.organization })
-    );
+    db.logActivity('reply_received',
+      JSON.stringify({ prospect_id: prospect.id, org: prospect.organization }));
 
     console.log(`[Reply] Detected reply from ${prospect.organization} (${fromEmail})`);
     found++;
   }
 
-  return { found };
+  return { found, bounces };
 }
 
 module.exports = { checkForReplies };
