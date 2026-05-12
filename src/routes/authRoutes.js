@@ -3,8 +3,9 @@ const bcrypt  = require('bcrypt');
 const router  = express.Router();
 
 const USERS = [
-  { email: 'radwan@simtura.ai',       hash: process.env.RADWAN_PASSWORD_HASH },
+  { email: 'radwan@simtura.ai',        hash: process.env.RADWAN_PASSWORD_HASH },
   { email: 'charliesedlock@gmail.com', hash: process.env.CHARLIE_PASSWORD_HASH },
+  { email: 'juju@phnproductions.com',  hash: process.env.JUJU_PASSWORD_HASH },
 ];
 
 router.post('/login', async (req, res) => {

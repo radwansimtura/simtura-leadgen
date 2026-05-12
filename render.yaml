@@ -42,6 +42,8 @@ services:
         sync: false
       - key: STRIPE_SECRET_KEY
         sync: false
+      - key: JUJU_PASSWORD_HASH
+        sync: false
 
   # ── Daily Cron Job (8 AM ET) ────────────────────────────────────────────────
   - type: cron
