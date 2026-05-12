@@ -56,31 +56,38 @@ function wrapHtml(plainTextBody, prospectId) {
 
 // ── AI email generation ───────────────────────────────────────────────────────
 
-async function generateEmail(prospect, step) {
+async function generateEmail(prospect, step, retries = 3) {
   const promptFn = STEP_PROMPTS[step];
   if (!promptFn) throw new Error(`No template for step ${step}`);
 
-  const message = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 1024,
-    messages: [
-      { role: 'user', content: promptFn(prospect) },
-    ],
-  });
+  let lastErr;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const message = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: promptFn(prospect) }],
+      });
 
-  const raw = message.content[0].text.trim();
-
-  // Strip markdown code fences if Claude wraps the JSON
-  const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
-
-  try {
-    return JSON.parse(cleaned);
-  } catch {
-    // Fallback: extract JSON from the response
-    const match = cleaned.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
-    throw new Error(`Claude returned non-JSON for step ${step}: ${raw.slice(0, 200)}`);
+      const raw     = message.content[0].text.trim();
+      const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+      try {
+        return JSON.parse(cleaned);
+      } catch {
+        const match = cleaned.match(/\{[\s\S]*\}/);
+        if (match) return JSON.parse(match[0]);
+        throw new Error(`Claude returned non-JSON for step ${step}: ${raw.slice(0, 200)}`);
+      }
+    } catch (err) {
+      lastErr = err;
+      if (attempt < retries && (err.status === 529 || err.status === 529 || String(err.message).includes('overloaded'))) {
+        await new Promise(r => setTimeout(r, attempt * 2000));
+      } else {
+        throw err;
+      }
+    }
   }
+  throw lastErr;
 }
 
 // ── Generate preview of next email without sending ───────────────────────────
