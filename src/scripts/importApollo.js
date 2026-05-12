@@ -12,7 +12,7 @@ const fetch  = require('node-fetch');
 const db     = require('../db/database');
 
 const APOLLO_KEY  = process.env.APOLLO_API_KEY;
-const APOLLO_URL  = 'https://api.apollo.io/v1/mixed_people/search';
+const APOLLO_URL  = 'https://api.apollo.io/v1/people/search';
 const PER_PAGE    = 25;
 
 const JOB_TITLES = [

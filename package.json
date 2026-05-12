@@ -7,6 +7,7 @@
     "start": "node src/index.js",
     "scheduler": "node src/scheduler.js",
     "import-apollo": "node src/scripts/importApollo.js",
+    "import-apollo-csv": "node src/scripts/importApolloCSV.js",
     "dev": "node src/index.js"
   },
   "engines": {
