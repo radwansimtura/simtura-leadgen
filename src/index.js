@@ -17,6 +17,9 @@ const db              = require('./db/database');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust Render/Cloudflare reverse proxy so req.secure is correct behind HTTPS
+app.set('trust proxy', 1);
+
 // ── Security headers ──────────────────────────────────────────────────────────
 
 app.use(helmet({
