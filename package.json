@@ -1,0 +1,24 @@
+{
+  "name": "simtura-leads",
+  "version": "1.0.0",
+  "description": "Lead generation automation system for Simtura.ai",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "scheduler": "node src/scheduler.js",
+    "import-apollo": "node src/scripts/importApollo.js",
+    "dev": "node src/index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "better-sqlite3": "^12.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.2",
+    "node-cron": "^3.0.3",
+    "node-fetch": "^2.7.0"
+  }
+}

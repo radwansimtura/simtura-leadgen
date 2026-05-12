@@ -1,0 +1,62 @@
+services:
+  # ── Web Dashboard ──────────────────────────────────────────────────────────
+  - type: web
+    name: simtura-leads-dashboard
+    runtime: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: node src/index.js
+    healthCheckPath: /api/status
+    disk:
+      name: simtura-leads-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: MS_CLIENT_ID
+        sync: false
+      - key: MS_CLIENT_SECRET
+        sync: false
+      - key: MS_TENANT_ID
+        sync: false
+      - key: MS_USER_EMAIL
+        sync: false
+      - key: OPERATOR_EMAIL
+        sync: false
+      - key: BASE_URL
+        sync: false
+      - key: CLAUDE_MODEL
+        value: claude-sonnet-4-6
+
+  # ── Daily Cron Job (8 AM ET) ────────────────────────────────────────────────
+  - type: cron
+    name: simtura-leads-scheduler
+    runtime: node
+    plan: starter
+    buildCommand: npm install
+    schedule: "0 13 * * *"   # 8am ET = 13:00 UTC
+    startCommand: node src/scheduler.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: MS_CLIENT_ID
+        sync: false
+      - key: MS_CLIENT_SECRET
+        sync: false
+      - key: MS_TENANT_ID
+        sync: false
+      - key: MS_USER_EMAIL
+        sync: false
+      - key: OPERATOR_EMAIL
+        sync: false
+      - key: BASE_URL
+        sync: false
+      - key: CLAUDE_MODEL
+        value: claude-sonnet-4-6
