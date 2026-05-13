@@ -76,6 +76,11 @@ app.get('/simtura-logo.png', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'simtura-logo.png'));
 });
 
+// Serve Chart.js from node_modules so it's not CDN-dependent
+app.get('/chart.umd.min.js', (req, res) => {
+  res.sendFile(path.resolve(__dirname, '../node_modules/chart.js/dist/chart.umd.min.js'));
+});
+
 // Serve login page (public)
 app.get('/login', (req, res) => {
   if (req.session?.user) return res.redirect('/');
