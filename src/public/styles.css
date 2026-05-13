@@ -68,9 +68,8 @@ body {
 }
 
 .logo-img {
-  height: 30px; width: auto; object-fit: contain;
-  filter: brightness(0) invert(1);
-  opacity: .92;
+  height: 26px; width: auto; object-fit: contain;
+  border-radius: 5px;
 }
 
 .logo-badge {
