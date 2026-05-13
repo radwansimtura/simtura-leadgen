@@ -1027,22 +1027,292 @@ async function renderOutreach() {
 
 // ── View: Analytics ───────────────────────────────────────────────────────────
 
+// ── Analytics chart instances (destroyed on re-render) ────────────────────────
+let _analyticsCharts = [];
+
+function getLast30Days() {
+  const days = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    days.push(d.toISOString().slice(0, 10));
+  }
+  return days;
+}
+
+function groupByDay(activities, action) {
+  const map = {};
+  activities.filter(a => a.action === action).forEach(a => {
+    if (!a.created_at) return;
+    const key = new Date(a.created_at).toISOString().slice(0, 10);
+    map[key] = (map[key] || 0) + 1;
+  });
+  return map;
+}
+
+function initAnalyticsCharts(days, emailsByDay, repliesByDay, pipelineKeys, pipelineValues, pipelineColors, stepCounts, pipeline, totalProspects, cumulativeEmails, dayOfWeekCounts, replyRateByStep) {
+  const charts = [];
+  if (typeof Chart === 'undefined') return charts;
+
+  Chart.defaults.font.family = "'Inter', -apple-system, sans-serif";
+
+  // 1 ── Email Activity Timeline
+  const tlCtx = document.getElementById('emailTimelineChart')?.getContext('2d');
+  if (tlCtx) {
+    const g1 = tlCtx.createLinearGradient(0, 0, 0, 200);
+    g1.addColorStop(0, 'rgba(59,127,237,.28)'); g1.addColorStop(1, 'rgba(59,127,237,0)');
+    const g2 = tlCtx.createLinearGradient(0, 0, 0, 200);
+    g2.addColorStop(0, 'rgba(16,185,129,.2)');  g2.addColorStop(1, 'rgba(16,185,129,0)');
+    charts.push(new Chart(tlCtx, {
+      type: 'line',
+      data: {
+        labels: days.map(d => { const dt = new Date(d + 'T12:00:00'); return `${dt.getMonth()+1}/${dt.getDate()}`; }),
+        datasets: [
+          { label: 'Emails Sent', data: days.map(d => emailsByDay[d] || 0), borderColor: '#3B7FED', backgroundColor: g1, borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#3B7FED', tension: 0.4, fill: true },
+          { label: 'Replies',     data: days.map(d => repliesByDay[d] || 0), borderColor: '#10B981', backgroundColor: g2, borderWidth: 2,   pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#10B981', tension: 0.4, fill: true },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', align: 'end', labels: { boxWidth: 8, boxHeight: 8, usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 11 }, color: '#475569' } },
+          tooltip: { mode: 'index', intersect: false, backgroundColor: 'rgba(11,23,58,.88)', padding: 12, cornerRadius: 10, titleFont: { size: 11, weight: '700' }, bodyFont: { size: 11 }, bodySpacing: 4 },
+        },
+        scales: {
+          x: { grid: { display: false }, border: { display: false }, ticks: { maxTicksLimit: 7, font: { size: 10 }, color: '#CBD5E1' } },
+          y: { grid: { color: 'rgba(0,0,0,.04)' }, border: { display: false }, ticks: { font: { size: 10 }, color: '#CBD5E1', precision: 0 }, beginAtZero: true },
+        },
+        interaction: { mode: 'nearest', axis: 'x', intersect: false },
+      }
+    }));
+  }
+
+  // 2 ── Pipeline Donut
+  const doCtx = document.getElementById('pipelineDonutChart')?.getContext('2d');
+  if (doCtx) {
+    charts.push(new Chart(doCtx, {
+      type: 'doughnut',
+      data: {
+        labels: pipelineKeys.map(k => k.charAt(0).toUpperCase() + k.slice(1)),
+        datasets: [{ data: pipelineValues, backgroundColor: pipelineColors, borderWidth: 0, hoverOffset: 8 }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '70%',
+        plugins: {
+          legend: { position: 'right', labels: { font: { size: 10 }, boxWidth: 8, boxHeight: 8, usePointStyle: true, pointStyle: 'circle', padding: 10, color: '#475569' } },
+          tooltip: { backgroundColor: 'rgba(11,23,58,.88)', padding: 12, cornerRadius: 10, callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw}${totalProspects ? ' (' + (ctx.raw/totalProspects*100).toFixed(1) + '%)' : ''}` } },
+        }
+      }
+    }));
+  }
+
+  // 3 ── Conversion Funnel (horizontal bar)
+  const fnCtx = document.getElementById('funnelChart')?.getContext('2d');
+  if (fnCtx) {
+    const fKeys   = ['new','contacted','engaged','replied','booked'];
+    const fLabels = ['New','Contacted','Engaged','Replied','Booked'];
+    const fData   = fKeys.map(k => pipeline[k] || 0);
+    const fColors = ['#94A3B8','#3B7FED','#8B5CF6','#10B981','#F59E0B'];
+    charts.push(new Chart(fnCtx, {
+      type: 'bar',
+      data: { labels: fLabels, datasets: [{ data: fData, backgroundColor: fColors, borderRadius: 6, borderSkipped: false }] },
+      options: {
+        responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+        plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(11,23,58,.88)', padding: 12, cornerRadius: 10, callbacks: { label: ctx => ` ${ctx.raw} prospects` } } },
+        scales: {
+          x: { grid: { color: 'rgba(0,0,0,.04)' }, border: { display: false }, ticks: { font: { size: 10 }, color: '#CBD5E1', precision: 0 }, beginAtZero: true },
+          y: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 11, weight: '600' }, color: '#475569' } },
+        }
+      }
+    }));
+  }
+
+  // 4 ── Sequence Step Breakdown
+  const stCtx = document.getElementById('stepChart')?.getContext('2d');
+  if (stCtx) {
+    const stGrad = stCtx.createLinearGradient(0, 0, 0, 180);
+    stGrad.addColorStop(0, '#3B7FED'); stGrad.addColorStop(1, 'rgba(59,127,237,.3)');
+    charts.push(new Chart(stCtx, {
+      type: 'bar',
+      data: { labels: ['Step 1','Step 2','Step 3','Step 4','Step 5'], datasets: [{ data: stepCounts, backgroundColor: stGrad, borderRadius: 6, borderSkipped: false }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(11,23,58,.88)', padding: 12, cornerRadius: 10, callbacks: { label: ctx => ` ${ctx.raw} emails sent` } } },
+        scales: {
+          x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 10 }, color: '#CBD5E1' } },
+          y: { grid: { color: 'rgba(0,0,0,.04)' }, border: { display: false }, ticks: { font: { size: 10 }, color: '#CBD5E1', precision: 0 }, beginAtZero: true },
+        }
+      }
+    }));
+  }
+
+  // 5 ── Cumulative Outreach Growth
+  const cumCtx = document.getElementById('cumulativeChart')?.getContext('2d');
+  if (cumCtx && cumulativeEmails) {
+    const gCum = cumCtx.createLinearGradient(0, 0, 0, 160);
+    gCum.addColorStop(0, 'rgba(59,127,237,.35)');
+    gCum.addColorStop(1, 'rgba(59,127,237,.02)');
+    charts.push(new Chart(cumCtx, {
+      type: 'line',
+      data: {
+        labels: days.map(d => { const dt = new Date(d + 'T12:00:00'); return `${dt.getMonth()+1}/${dt.getDate()}`; }),
+        datasets: [{
+          label: 'Total Emails Sent',
+          data: cumulativeEmails,
+          borderColor: '#3B7FED',
+          backgroundColor: gCum,
+          borderWidth: 2.5,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#3B7FED',
+          tension: 0.4,
+          fill: true,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { mode: 'index', intersect: false, backgroundColor: 'rgba(11,23,58,.88)', padding: 12, cornerRadius: 10, titleFont: { size: 11, weight: '700' }, bodyFont: { size: 11 } },
+        },
+        scales: {
+          x: { grid: { display: false }, border: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 10 }, color: '#CBD5E1' } },
+          y: { grid: { color: 'rgba(0,0,0,.04)' }, border: { display: false }, ticks: { font: { size: 10 }, color: '#CBD5E1', precision: 0 }, beginAtZero: true },
+        },
+        interaction: { mode: 'nearest', axis: 'x', intersect: false },
+      }
+    }));
+  }
+
+  // 6 ── Best Days to Send (day of week bar)
+  const dowCtx = document.getElementById('dowChart')?.getContext('2d');
+  if (dowCtx && dayOfWeekCounts) {
+    const maxDow = Math.max(...dayOfWeekCounts, 1);
+    const dowColors = dayOfWeekCounts.map(v => v === maxDow && v > 0 ? '#3B7FED' : 'rgba(59,127,237,.3)');
+    charts.push(new Chart(dowCtx, {
+      type: 'bar',
+      data: {
+        labels: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
+        datasets: [{ data: dayOfWeekCounts, backgroundColor: dowColors, borderRadius: 7, borderSkipped: false }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { backgroundColor: 'rgba(11,23,58,.88)', padding: 12, cornerRadius: 10, callbacks: { label: ctx => ` ${ctx.raw} emails` } },
+        },
+        scales: {
+          x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 11, weight: '500' }, color: '#64748B' } },
+          y: { grid: { color: 'rgba(0,0,0,.04)' }, border: { display: false }, ticks: { font: { size: 10 }, color: '#CBD5E1', precision: 0 }, beginAtZero: true },
+        }
+      }
+    }));
+  }
+
+  // 7 ── Reply Rate by Step (mixed bar + line)
+  const rrCtx = document.getElementById('replyRateStepChart')?.getContext('2d');
+  if (rrCtx && replyRateByStep) {
+    charts.push(new Chart(rrCtx, {
+      type: 'bar',
+      data: {
+        labels: ['Step 1','Step 2','Step 3','Step 4','Step 5'],
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Emails Sent',
+            data: stepCounts,
+            backgroundColor: 'rgba(59,127,237,.25)',
+            borderRadius: 6,
+            borderSkipped: false,
+            yAxisID: 'y',
+          },
+          {
+            type: 'line',
+            label: 'Reply Rate %',
+            data: replyRateByStep,
+            borderColor: '#10B981',
+            backgroundColor: 'transparent',
+            borderWidth: 2.5,
+            pointRadius: 5,
+            pointBackgroundColor: '#10B981',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            tension: 0.4,
+            yAxisID: 'y2',
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', align: 'end', labels: { boxWidth: 8, boxHeight: 8, usePointStyle: true, pointStyle: 'circle', padding: 12, font: { size: 10 }, color: '#475569' } },
+          tooltip: { mode: 'index', intersect: false, backgroundColor: 'rgba(11,23,58,.88)', padding: 12, cornerRadius: 10 },
+        },
+        scales: {
+          x:  { grid: { display: false }, border: { display: false }, ticks: { font: { size: 10 }, color: '#CBD5E1' } },
+          y:  { position: 'left',  grid: { color: 'rgba(0,0,0,.04)' }, border: { display: false }, ticks: { font: { size: 10 }, color: '#CBD5E1', precision: 0 }, beginAtZero: true },
+          y2: { position: 'right', grid: { display: false }, border: { display: false }, ticks: { font: { size: 10 }, color: '#10B981', callback: v => v + '%' }, beginAtZero: true },
+        }
+      }
+    }));
+  }
+
+  return charts;
+}
+
 async function renderAnalytics() {
+  _analyticsCharts.forEach(c => c.destroy());
+  _analyticsCharts = [];
+
   document.getElementById('content').innerHTML = `<div class="loading-state"><div class="spinner"></div> Loading…</div>`;
 
   const [gaData, overview, activity] = await Promise.all([
     fetch('/api/analytics/ga').then(r => r.json()).catch(() => ({ configured: false })),
     api('/overview').catch(() => ({})),
-    api('/activity?limit=1000').catch(() => []),
+    api('/activity?limit=2000').catch(() => []),
   ]);
 
   const emailsSent     = activity.filter(a => a.action === 'email_sent').length;
   const repliesCount   = activity.filter(a => a.action === 'reply_received').length;
   const replyRate      = emailsSent ? ((repliesCount / emailsSent) * 100).toFixed(1) : '0.0';
   const booked         = overview.booked || 0;
-  const totalProspects = overview.totalProspects || Object.values(overview.pipeline || {}).reduce((a,b)=>a+b,0) || 0;
+  const pipeline       = overview.pipeline || {};
+  const totalProspects = Object.values(pipeline).reduce((a,b)=>a+b,0) || overview.totalProspects || 0;
+  const bookingRate    = emailsSent ? ((booked / emailsSent) * 100).toFixed(1) : '0.0';
 
-  const embedSection = gaData.configured ? `
+  const stepCounts = [0,0,0,0,0];
+  activity.filter(a => a.action === 'email_sent').forEach(a => {
+    try { const s = JSON.parse(a.details).step; if (s >= 1 && s <= 5) stepCounts[s-1]++; } catch {}
+  });
+
+  const days         = getLast30Days();
+  const emailsByDay  = groupByDay(activity, 'email_sent');
+  const repliesByDay = groupByDay(activity, 'reply_received');
+
+  const dayOfWeekCounts = [0,0,0,0,0,0,0];
+  activity.filter(a => a.action === 'email_sent').forEach(a => {
+    if (!a.created_at) return;
+    dayOfWeekCounts[new Date(a.created_at).getDay()]++;
+  });
+
+  const repliesByStep = [0,0,0,0,0];
+  activity.filter(a => a.action === 'reply_received').forEach(a => {
+    try { const s = JSON.parse(a.details).step; if (s >= 1 && s <= 5) repliesByStep[s-1]++; } catch {}
+  });
+  const replyRateByStep = stepCounts.map((sent, i) => sent ? parseFloat((repliesByStep[i]/sent*100).toFixed(1)) : 0);
+
+  const cumulativeEmails = days.map((d, i) => days.slice(0,i+1).reduce((acc,day) => acc+(emailsByDay[day]||0), 0));
+
+  const activeDays = days.filter(d => (emailsByDay[d]||0) > 0).length;
+  const DOW_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const bestDayName = emailsSent > 0 ? DOW_NAMES[dayOfWeekCounts.indexOf(Math.max(...dayOfWeekCounts))] : '—';
+  const contactedPct = totalProspects > 0 ? (((pipeline.contacted||0)+(pipeline.engaged||0)+(pipeline.replied||0)+(pipeline.booked||0))/totalProspects*100).toFixed(0) : '0';
+
+  const pipelineKeys   = ['new','contacted','engaged','replied','booked','bounced','unsubscribed'];
+  const pipelineValues = pipelineKeys.map(k => pipeline[k] || 0);
+  const pipelineColors = ['#94A3B8','#3B7FED','#8B5CF6','#10B981','#F59E0B','#EF4444','#CBD5E1'];
+
+  const gaEmbed = gaData.configured ? `
+    <div class="section-header" style="margin-top:8px;"><div class="section-title">Website Analytics</div></div>
     <div class="analytics-embed-card">
       <div class="analytics-embed-bar">
         <img src="simtura-logo.png" class="analytics-embed-logo" alt="Simtura">
@@ -1050,61 +1320,113 @@ async function renderAnalytics() {
           <div class="analytics-embed-title">Simtura.ai — Website Analytics</div>
           <div class="analytics-embed-sub">Google Analytics 4 via Looker Studio</div>
         </div>
-        <div class="analytics-powered"><span class="live-dot"></span>&nbsp;Live data</div>
+        <div class="analytics-powered"><span class="live-dot"></span>&nbsp;Live</div>
       </div>
-      <div style="height:calc(100vh - 370px);min-height:440px;">
-        <iframe src="${gaData.embedUrl}" style="width:100%;height:100%;border:none;"
-          allowfullscreen
+      <div style="height:calc(100vh - 390px);min-height:420px;">
+        <iframe src="${gaData.embedUrl}" style="width:100%;height:100%;border:none;" allowfullscreen
           sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox">
         </iframe>
       </div>
-    </div>` : `
-    <div class="card">
-      <div class="card-body" style="text-align:center;padding:44px 32px;">
-        <div style="font-size:36px;margin-bottom:14px;">📊</div>
-        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px;">Connect your website analytics</div>
-        <div style="font-size:13px;color:var(--text-3);line-height:1.7;margin-bottom:20px;">Link a Looker Studio report to see your GA4 data here.</div>
-        <div style="background:var(--surface-alt);border-radius:10px;padding:16px;text-align:left;font-size:12.5px;color:var(--text-2);line-height:1.9;">
-          <b>To enable:</b><br>
-          1. Go to <b>lookerstudio.google.com</b> → Create → Report<br>
-          2. Connect your GA4 property, Share → Embed report (make public)<br>
-          3. Set <code>LOOKER_STUDIO_URL</code> on Render to the embed src URL
-        </div>
-      </div>
-    </div>`;
+    </div>` : '';
 
   document.getElementById('content').innerHTML = `
-    <div class="section-header"><div class="section-title">Outreach Performance</div></div>
     <div class="kpi-grid">
       <div class="kpi-card blue">
         <span class="kpi-icon">📧</span>
         <div class="kpi-value" data-count="${emailsSent}">0</div>
-        <div class="kpi-label">Emails Sent</div>
-        <span class="kpi-sub">${totalProspects} prospects total</span>
+        <div class="kpi-label">Total Emails Sent</div>
+        <span class="kpi-sub">${totalProspects} prospects in pipeline</span>
       </div>
       <div class="kpi-card green">
         <span class="kpi-icon">💬</span>
         <div class="kpi-value" data-count="${replyRate}">0.0</div>
         <div class="kpi-label">Reply Rate %</div>
-        <span class="kpi-sub">${repliesCount} replies received</span>
+        <span class="kpi-sub">${repliesCount} total replies received</span>
       </div>
       <div class="kpi-card amber">
         <span class="kpi-icon">📅</span>
         <div class="kpi-value" data-count="${booked}">0</div>
         <div class="kpi-label">Demos Booked</div>
-        <span class="kpi-sub">via email outreach</span>
+        <span class="kpi-sub">${bookingRate}% booking conversion</span>
       </div>
       <div class="kpi-card purple">
-        <span class="kpi-icon">🌐</span>
-        <div class="kpi-value">${gaData.configured ? '↓' : '—'}</div>
-        <div class="kpi-label">Website Visitors</div>
-        <span class="kpi-sub">${gaData.configured ? 'see GA4 report below' : 'connect Looker Studio'}</span>
+        <span class="kpi-icon">👥</span>
+        <div class="kpi-value" data-count="${totalProspects}">0</div>
+        <div class="kpi-label">Total Prospects</div>
+        <span class="kpi-sub">across all pipeline stages</span>
       </div>
     </div>
-    <div class="section-header" style="margin-top:6px;"><div class="section-title">Website Analytics</div></div>
-    ${embedSection}`;
+
+    <div class="section-header"><div class="section-title">Outreach Performance</div></div>
+
+    <div class="insights-strip">
+      <div class="insight-tile">
+        <div class="insight-val">${(emailsSent/30).toFixed(1)}</div>
+        <div class="insight-lbl">Avg emails / day</div>
+      </div>
+      <div class="insight-tile">
+        <div class="insight-val">${activeDays}</div>
+        <div class="insight-lbl">Active send days</div>
+      </div>
+      <div class="insight-tile">
+        <div class="insight-val">${bestDayName}</div>
+        <div class="insight-lbl">Top send day</div>
+      </div>
+      <div class="insight-tile">
+        <div class="insight-val">${contactedPct}%</div>
+        <div class="insight-lbl">Prospects contacted</div>
+      </div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:16px;">
+      <div class="chart-card-title">Outreach Growth — Cumulative</div>
+      <div class="chart-card-sub">Total emails sent over the last 30 days</div>
+      <div style="position:relative;height:160px;"><canvas id="cumulativeChart"></canvas></div>
+    </div>
+
+    <div class="charts-grid-2" style="margin-bottom:16px;">
+      <div class="chart-card">
+        <div class="chart-card-title">Email Activity — Last 30 Days</div>
+        <div class="chart-card-sub">Emails sent vs. replies received</div>
+        <div style="position:relative;height:200px;"><canvas id="emailTimelineChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-title">Pipeline Breakdown</div>
+        <div class="chart-card-sub">Status distribution across ${totalProspects} prospects</div>
+        <div style="position:relative;height:200px;"><canvas id="pipelineDonutChart"></canvas></div>
+      </div>
+    </div>
+    <div class="charts-grid-2" style="margin-bottom:16px;">
+      <div class="chart-card">
+        <div class="chart-card-title">Conversion Funnel</div>
+        <div class="chart-card-sub">Prospects at each pipeline stage</div>
+        <div style="position:relative;height:180px;"><canvas id="funnelChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-title">Sequence Step Breakdown</div>
+        <div class="chart-card-sub">Emails sent per sequence step</div>
+        <div style="position:relative;height:180px;"><canvas id="stepChart"></canvas></div>
+      </div>
+    </div>
+    <div class="charts-grid-2" style="margin-bottom:24px;">
+      <div class="chart-card">
+        <div class="chart-card-title">Best Days to Send</div>
+        <div class="chart-card-sub">Email volume by day of week</div>
+        <div style="position:relative;height:180px;"><canvas id="dowChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-title">Reply Rate by Sequence Step</div>
+        <div class="chart-card-sub">Emails sent vs. reply rate per step</div>
+        <div style="position:relative;height:180px;"><canvas id="replyRateStepChart"></canvas></div>
+      </div>
+    </div>
+
+    ${gaEmbed}`;
 
   animateCounters();
+  requestAnimationFrame(() => {
+    _analyticsCharts = initAnalyticsCharts(days, emailsByDay, repliesByDay, pipelineKeys, pipelineValues, pipelineColors, stepCounts, pipeline, totalProspects, cumulativeEmails, dayOfWeekCounts, replyRateByStep);
+  });
 }
 
 // ── View: Revenue ─────────────────────────────────────────────────────────────
