@@ -1002,71 +1002,39 @@ async function renderOutreach() {
 // ── View: Analytics ───────────────────────────────────────────────────────────
 
 async function renderAnalytics() {
-  document.getElementById('content').innerHTML = `<div class="loading-state"><div class="spinner"></div> Fetching analytics…</div>`;
+  document.getElementById('content').innerHTML = `<div class="loading-state"><div class="spinner"></div> Loading analytics…</div>`;
 
   let data;
   try { data = await fetch('/api/analytics/ga').then(r => r.json()); }
-  catch { data = { configured: false, message: 'Failed to reach analytics API.' }; }
+  catch { data = { configured: false }; }
 
   if (!data.configured) {
     document.getElementById('content').innerHTML = `
-      <div class="card" style="max-width:520px;">
+      <div class="card" style="max-width:560px;">
         <div class="card-body" style="text-align:center;padding:48px 32px;">
           <div style="font-size:38px;margin-bottom:14px;">📊</div>
           <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px;">Analytics not configured</div>
-          <div style="font-size:13.5px;color:var(--text-3);line-height:1.6;margin-bottom:20px;">${data.message}</div>
-          <div style="background:var(--surface-alt);border-radius:8px;padding:14px;text-align:left;font-size:12.5px;color:var(--text-2);">
+          <div style="font-size:13.5px;color:var(--text-3);line-height:1.6;margin-bottom:20px;">Connect a Looker Studio report to see your GA4 data here.</div>
+          <div style="background:var(--surface-alt);border-radius:8px;padding:16px;text-align:left;font-size:12.5px;color:var(--text-2);line-height:1.8;">
             <b>To enable:</b><br>
-            1. Create a Google service account with Analytics Data API access<br>
-            2. Set <code>GOOGLE_APPLICATION_CREDENTIALS</code> to the JSON key path<br>
-            3. Set <code>GA_PROPERTY_ID</code> to your numeric property ID<br>
-            4. Property ID G-KYWFXDQJDX is your Measurement ID — find the numeric ID in GA4 → Admin → Property Settings
+            1. Go to <b>lookerstudio.google.com</b> → Create → Report<br>
+            2. Connect your GA4 property as the data source<br>
+            3. Click <b>Share → Embed report</b> and copy the iframe <code>src</code> URL<br>
+            4. Set <code>LOOKER_STUDIO_URL</code> on Render to that URL
           </div>
         </div>
       </div>`;
     return;
   }
 
-  const maxUsers = Math.max(...data.daily.map(d => d.users), 1);
-  const dailyHTML = data.daily.slice(-14).map(d => `
-    <div class="chart-bar-row">
-      <div class="chart-bar-label">${d.date.slice(4,6)}/${d.date.slice(6,8)}</div>
-      <div class="chart-bar-wrap"><div class="chart-bar-fill" style="width:${(d.users/maxUsers*100).toFixed(1)}%"></div></div>
-      <div class="chart-bar-val">${d.users}</div>
-    </div>`).join('');
-
-  const maxViews = Math.max(...data.pages.map(p => p.views), 1);
-  const pagesHTML = data.pages.slice(0,8).map(p => `
-    <div class="chart-bar-row">
-      <div class="chart-bar-label">${p.path}</div>
-      <div class="chart-bar-wrap"><div class="chart-bar-fill" style="width:${(p.views/maxViews*100).toFixed(1)}%"></div></div>
-      <div class="chart-bar-val">${p.views}</div>
-    </div>`).join('');
-
   document.getElementById('content').innerHTML = `
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="7" r="4"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg></div>
-        <div class="stat-value">${data.totalUsers.toLocaleString()}</div>
-        <div class="stat-label">Visitors (30 days)</div>
-      </div>
-      ${data.sources.slice(0,3).map(s => `
-      <div class="stat-card">
-        <div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 12.5l4-4 3 3 5-7"/></svg></div>
-        <div class="stat-value">${s.sessions.toLocaleString()}</div>
-        <div class="stat-label">${s.channel}</div>
-      </div>`).join('')}
-    </div>
-
-    <div class="analytics-grid">
-      <div class="card">
-        <div class="card-header"><span class="card-title">Daily Visitors (last 14 days)</span></div>
-        <div class="card-body">${dailyHTML}</div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">Top Pages</span></div>
-        <div class="card-body">${pagesHTML}</div>
-      </div>
+    <div style="height:calc(100vh - 120px);min-height:500px;">
+      <iframe
+        src="${data.embedUrl}"
+        style="width:100%;height:100%;border:none;border-radius:10px;"
+        allowfullscreen
+        sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+      ></iframe>
     </div>`;
 }
 

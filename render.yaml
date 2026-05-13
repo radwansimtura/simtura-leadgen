@@ -40,6 +40,8 @@ services:
         sync: false
       - key: GA_PROPERTY_ID
         sync: false
+      - key: LOOKER_STUDIO_URL
+        sync: false
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: JUJU_PASSWORD_HASH
