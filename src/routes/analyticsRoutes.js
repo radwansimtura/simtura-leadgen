@@ -57,7 +57,9 @@ function parseTotals(report, idx = 0) {
 
 // Real GA4 data — powers the custom Chart.js analytics section
 router.get('/ga4', async (req, res) => {
-  const propertyId = process.env.GA4_PROPERTY_ID;
+  // Strip any "properties/" prefix or "GA4-" prefix if accidentally included
+  const rawId = process.env.GA4_PROPERTY_ID || '';
+  const propertyId = rawId.replace(/^properties\//i, '').replace(/^GA4-/i, '').trim();
 
   if (!propertyId || !process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET || !process.env.GOOGLE_REFRESH_TOKEN) {
     return res.json({ configured: false });
@@ -124,7 +126,11 @@ router.get('/ga4', async (req, res) => {
       }, token),
     ]);
 
-    if (overview.error) throw new Error(overview.error.message);
+    if (overview.error) {
+      const detail = JSON.stringify(overview.error);
+      console.error('[GA4] API error:', detail);
+      throw new Error(`${overview.error.message} (status: ${overview.error.status}, code: ${overview.error.code})`);
+    }
 
     const totals = parseTotals(overview);
 
