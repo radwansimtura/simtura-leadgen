@@ -165,6 +165,9 @@ function navigate(view) {
 
   const c = document.getElementById('content');
   c.innerHTML = `<div class="loading-state"><div class="spinner"></div> Loading…</div>`;
+  c.classList.remove('content-animate');
+  void c.offsetWidth;
+  c.classList.add('content-animate');
 
   const renderers = {
     overview:  renderOverview,
@@ -179,6 +182,26 @@ function navigate(view) {
     settings:  renderSettings,
   };
   (renderers[view] || renderOverview)();
+}
+
+function animateCounters() {
+  document.querySelectorAll('[data-count]').forEach(el => {
+    const raw = el.dataset.count;
+    const target = parseFloat(raw);
+    const isFloat = raw.includes('.');
+    if (isNaN(target) || target === 0) return;
+    const duration = 900;
+    const start = performance.now();
+    function tick(now) {
+      const p = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = isFloat
+        ? (target * eased).toFixed(1)
+        : Math.floor(target * eased).toLocaleString();
+      if (p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  });
 }
 
 // ── View: Overview ────────────────────────────────────────────────────────────
@@ -227,22 +250,22 @@ async function renderOverview() {
 
   document.getElementById('content').innerHTML = `
     <div class="metrics-grid">
-      <div class="metric-card">
+      <div class="metric-card c-blue">
         <div class="metric-label">Total Prospects</div>
-        <div class="metric-value">${total}</div>
+        <div class="metric-value" data-count="${total}">${total}</div>
       </div>
-      <div class="metric-card">
+      <div class="metric-card c-purple">
         <div class="metric-label">Emails Sent This Week</div>
-        <div class="metric-value indigo">${data.emailsSentWeek || 0}</div>
+        <div class="metric-value" data-count="${data.emailsSentWeek || 0}">${data.emailsSentWeek || 0}</div>
       </div>
-      <div class="metric-card">
+      <div class="metric-card c-green">
         <div class="metric-label">Open Replies</div>
-        <div class="metric-value green">${data.openReplies || 0}</div>
-        ${data.openReplies > 0 ? '<div class="metric-sub">Need attention</div>' : ''}
+        <div class="metric-value" data-count="${data.openReplies || 0}">${data.openReplies || 0}</div>
+        ${data.openReplies > 0 ? '<div class="metric-sub" style="color:#059669;font-size:11px;margin-top:4px;">Need attention</div>' : ''}
       </div>
-      <div class="metric-card">
-        <div class="metric-label">Calls Booked</div>
-        <div class="metric-value amber">${data.booked || 0}</div>
+      <div class="metric-card c-amber">
+        <div class="metric-label">Demos Booked</div>
+        <div class="metric-value" data-count="${data.booked || 0}">${data.booked || 0}</div>
       </div>
     </div>
 
@@ -265,6 +288,8 @@ async function renderOverview() {
         </div>
       </div>
     </div>`;
+
+  animateCounters();
 
   // Wire topbar refresh button
   document.getElementById('topbarActions').innerHTML =
@@ -954,22 +979,22 @@ async function renderOutreach() {
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 8h13M8 1.5l6.5 6.5-6.5 6.5"/></svg></div>
-        <div class="stat-value">${overview.emailsSentWeek || 0}</div>
+        <div class="stat-value" data-count="${overview.emailsSentWeek || 0}">${overview.emailsSentWeek || 0}</div>
         <div class="stat-label">Emails Sent This Week</div>
       </div>
       <div class="stat-card">
         <div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H2a.5.5 0 0 0-.5.5v8A.5.5 0 0 0 2 11h3v2.5l3-2.5h6a.5.5 0 0 0 .5-.5v-8A.5.5 0 0 0 14 2Z"/></svg></div>
-        <div class="stat-value">${repliesCount}</div>
+        <div class="stat-value" data-count="${repliesCount}">${repliesCount}</div>
         <div class="stat-label">Total Replies</div>
       </div>
       <div class="stat-card">
         <div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12l4-4 3 3 5-7"/></svg></div>
-        <div class="stat-value">${replyRate}%</div>
-        <div class="stat-label">Reply Rate</div>
+        <div class="stat-value" data-count="${replyRate}">0.0</div>
+        <div class="stat-label">Reply Rate %</div>
       </div>
       <div class="stat-card">
         <div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M5 8l2 2 4-4"/></svg></div>
-        <div class="stat-value">${overview.booked || 0}</div>
+        <div class="stat-value" data-count="${overview.booked || 0}">${overview.booked || 0}</div>
         <div class="stat-label">Demos Booked</div>
       </div>
     </div>
@@ -997,45 +1022,89 @@ async function renderOutreach() {
         </div>
       </div>
     </div>`;
+  animateCounters();
 }
 
 // ── View: Analytics ───────────────────────────────────────────────────────────
 
 async function renderAnalytics() {
-  document.getElementById('content').innerHTML = `<div class="loading-state"><div class="spinner"></div> Loading analytics…</div>`;
+  document.getElementById('content').innerHTML = `<div class="loading-state"><div class="spinner"></div> Loading…</div>`;
 
-  let data;
-  try { data = await fetch('/api/analytics/ga').then(r => r.json()); }
-  catch { data = { configured: false }; }
+  const [gaData, overview, activity] = await Promise.all([
+    fetch('/api/analytics/ga').then(r => r.json()).catch(() => ({ configured: false })),
+    api('/overview').catch(() => ({})),
+    api('/activity?limit=1000').catch(() => []),
+  ]);
 
-  if (!data.configured) {
-    document.getElementById('content').innerHTML = `
-      <div class="card" style="max-width:560px;">
-        <div class="card-body" style="text-align:center;padding:48px 32px;">
-          <div style="font-size:38px;margin-bottom:14px;">📊</div>
-          <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px;">Analytics not configured</div>
-          <div style="font-size:13.5px;color:var(--text-3);line-height:1.6;margin-bottom:20px;">Connect a Looker Studio report to see your GA4 data here.</div>
-          <div style="background:var(--surface-alt);border-radius:8px;padding:16px;text-align:left;font-size:12.5px;color:var(--text-2);line-height:1.8;">
-            <b>To enable:</b><br>
-            1. Go to <b>lookerstudio.google.com</b> → Create → Report<br>
-            2. Connect your GA4 property as the data source<br>
-            3. Click <b>Share → Embed report</b> and copy the iframe <code>src</code> URL<br>
-            4. Set <code>LOOKER_STUDIO_URL</code> on Render to that URL
-          </div>
+  const emailsSent     = activity.filter(a => a.action === 'email_sent').length;
+  const repliesCount   = activity.filter(a => a.action === 'reply_received').length;
+  const replyRate      = emailsSent ? ((repliesCount / emailsSent) * 100).toFixed(1) : '0.0';
+  const booked         = overview.booked || 0;
+  const totalProspects = overview.totalProspects || Object.values(overview.pipeline || {}).reduce((a,b)=>a+b,0) || 0;
+
+  const embedSection = gaData.configured ? `
+    <div class="analytics-embed-card">
+      <div class="analytics-embed-bar">
+        <img src="simtura-logo.png" class="analytics-embed-logo" alt="Simtura">
+        <div style="margin-left:4px;">
+          <div class="analytics-embed-title">Simtura.ai — Website Analytics</div>
+          <div class="analytics-embed-sub">Google Analytics 4 via Looker Studio</div>
         </div>
-      </div>`;
-    return;
-  }
+        <div class="analytics-powered"><span class="live-dot"></span>&nbsp;Live data</div>
+      </div>
+      <div style="height:calc(100vh - 370px);min-height:440px;">
+        <iframe src="${gaData.embedUrl}" style="width:100%;height:100%;border:none;"
+          allowfullscreen
+          sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox">
+        </iframe>
+      </div>
+    </div>` : `
+    <div class="card">
+      <div class="card-body" style="text-align:center;padding:44px 32px;">
+        <div style="font-size:36px;margin-bottom:14px;">📊</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px;">Connect your website analytics</div>
+        <div style="font-size:13px;color:var(--text-3);line-height:1.7;margin-bottom:20px;">Link a Looker Studio report to see your GA4 data here.</div>
+        <div style="background:var(--surface-alt);border-radius:10px;padding:16px;text-align:left;font-size:12.5px;color:var(--text-2);line-height:1.9;">
+          <b>To enable:</b><br>
+          1. Go to <b>lookerstudio.google.com</b> → Create → Report<br>
+          2. Connect your GA4 property, Share → Embed report (make public)<br>
+          3. Set <code>LOOKER_STUDIO_URL</code> on Render to the embed src URL
+        </div>
+      </div>
+    </div>`;
 
   document.getElementById('content').innerHTML = `
-    <div style="height:calc(100vh - 120px);min-height:500px;">
-      <iframe
-        src="${data.embedUrl}"
-        style="width:100%;height:100%;border:none;border-radius:10px;"
-        allowfullscreen
-        sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-      ></iframe>
-    </div>`;
+    <div class="section-header"><div class="section-title">Outreach Performance</div></div>
+    <div class="kpi-grid">
+      <div class="kpi-card blue">
+        <span class="kpi-icon">📧</span>
+        <div class="kpi-value" data-count="${emailsSent}">0</div>
+        <div class="kpi-label">Emails Sent</div>
+        <span class="kpi-sub">${totalProspects} prospects total</span>
+      </div>
+      <div class="kpi-card green">
+        <span class="kpi-icon">💬</span>
+        <div class="kpi-value" data-count="${replyRate}">0.0</div>
+        <div class="kpi-label">Reply Rate %</div>
+        <span class="kpi-sub">${repliesCount} replies received</span>
+      </div>
+      <div class="kpi-card amber">
+        <span class="kpi-icon">📅</span>
+        <div class="kpi-value" data-count="${booked}">0</div>
+        <div class="kpi-label">Demos Booked</div>
+        <span class="kpi-sub">via email outreach</span>
+      </div>
+      <div class="kpi-card purple">
+        <span class="kpi-icon">🌐</span>
+        <div class="kpi-value">${gaData.configured ? '↓' : '—'}</div>
+        <div class="kpi-label">Website Visitors</div>
+        <span class="kpi-sub">${gaData.configured ? 'see GA4 report below' : 'connect Looker Studio'}</span>
+      </div>
+    </div>
+    <div class="section-header" style="margin-top:6px;"><div class="section-title">Website Analytics</div></div>
+    ${embedSection}`;
+
+  animateCounters();
 }
 
 // ── View: Revenue ─────────────────────────────────────────────────────────────
