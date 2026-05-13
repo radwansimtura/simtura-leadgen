@@ -554,6 +554,12 @@ tr:hover td { background: #FAFCFF; }
   width: 3px; height: 13px; background: var(--brand); border-radius: 2px;
 }
 
+.ga4-error-notice {
+  background: #FEF2F2; border: 1px solid #FECACA; color: #DC2626;
+  border-radius: 10px; padding: 14px 18px; font-size: 13px;
+  margin-bottom: 16px;
+}
+
 .analytics-embed-card {
   background: var(--surface);
   border: 1px solid var(--border);

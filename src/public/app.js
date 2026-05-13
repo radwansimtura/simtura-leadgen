@@ -1259,14 +1259,125 @@ function initAnalyticsCharts(days, emailsByDay, repliesByDay, pipelineKeys, pipe
   return charts;
 }
 
+function parseGA4Date(d) {
+  return `${parseInt(d.slice(4,6))}/${parseInt(d.slice(6,8))}`;
+}
+
+function initGA4Charts(ga4) {
+  const charts = [];
+  if (typeof Chart === 'undefined' || !ga4?.configured || ga4.error) return charts;
+
+  // 1 — Users & Sessions timeline
+  const tlCtx = document.getElementById('ga4TimelineChart')?.getContext('2d');
+  if (tlCtx && ga4.timeline?.length) {
+    const g1 = tlCtx.createLinearGradient(0, 0, 0, 220);
+    g1.addColorStop(0, 'rgba(59,127,237,.3)'); g1.addColorStop(1, 'rgba(59,127,237,0)');
+    const g2 = tlCtx.createLinearGradient(0, 0, 0, 220);
+    g2.addColorStop(0, 'rgba(16,185,129,.2)'); g2.addColorStop(1, 'rgba(16,185,129,0)');
+    charts.push(new Chart(tlCtx, {
+      type: 'line',
+      data: {
+        labels: ga4.timeline.map(r => parseGA4Date(r.date)),
+        datasets: [
+          { label: 'Users',    data: ga4.timeline.map(r => r.users),    borderColor: '#3B7FED', backgroundColor: g1, borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 5, tension: 0.4, fill: true },
+          { label: 'Sessions', data: ga4.timeline.map(r => r.sessions), borderColor: '#10B981', backgroundColor: g2, borderWidth: 2,   pointRadius: 0, pointHoverRadius: 5, tension: 0.4, fill: true },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', align: 'end', labels: { boxWidth: 8, boxHeight: 8, usePointStyle: true, pointStyle: 'circle', padding: 14, font: { size: 11 }, color: '#475569' } },
+          tooltip: { mode: 'index', intersect: false, backgroundColor: 'rgba(11,23,58,.9)', padding: 12, cornerRadius: 10, titleFont: { size: 11, weight: '700' }, bodyFont: { size: 11 }, bodySpacing: 4 },
+        },
+        scales: {
+          x: { grid: { display: false }, border: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 10 }, color: '#CBD5E1' } },
+          y: { grid: { color: 'rgba(0,0,0,.04)' }, border: { display: false }, ticks: { font: { size: 10 }, color: '#CBD5E1', precision: 0 }, beginAtZero: true },
+        },
+        interaction: { mode: 'nearest', axis: 'x', intersect: false },
+      }
+    }));
+  }
+
+  // 2 — Device breakdown doughnut
+  const dvCtx = document.getElementById('ga4DeviceChart')?.getContext('2d');
+  if (dvCtx && ga4.devices?.length) {
+    const dvColors = { desktop: '#3B7FED', mobile: '#8B5CF6', tablet: '#10B981' };
+    charts.push(new Chart(dvCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ga4.devices.map(d => d.device.charAt(0).toUpperCase() + d.device.slice(1)),
+        datasets: [{ data: ga4.devices.map(d => d.sessions), backgroundColor: ga4.devices.map(d => dvColors[d.device] || '#94A3B8'), borderWidth: 0, hoverOffset: 8 }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '68%',
+        plugins: {
+          legend: { position: 'right', labels: { font: { size: 11 }, boxWidth: 9, boxHeight: 9, usePointStyle: true, pointStyle: 'circle', padding: 12, color: '#475569' } },
+          tooltip: { backgroundColor: 'rgba(11,23,58,.9)', padding: 12, cornerRadius: 10, callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} sessions` } },
+        }
+      }
+    }));
+  }
+
+  // 3 — Traffic sources horizontal bar
+  const srCtx = document.getElementById('ga4SourcesChart')?.getContext('2d');
+  if (srCtx && ga4.sources?.length) {
+    const srColors = ['#3B7FED','#8B5CF6','#10B981','#F59E0B','#EF4444','#06B6D4','#EC4899','#94A3B8'];
+    charts.push(new Chart(srCtx, {
+      type: 'bar',
+      data: {
+        labels: ga4.sources.map(s => s.channel),
+        datasets: [{ data: ga4.sources.map(s => s.sessions), backgroundColor: srColors.slice(0, ga4.sources.length), borderRadius: 6, borderSkipped: false }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+        plugins: {
+          legend: { display: false },
+          tooltip: { backgroundColor: 'rgba(11,23,58,.9)', padding: 12, cornerRadius: 10, callbacks: { label: ctx => ` ${ctx.raw} sessions` } },
+        },
+        scales: {
+          x: { grid: { color: 'rgba(0,0,0,.04)' }, border: { display: false }, ticks: { font: { size: 10 }, color: '#CBD5E1', precision: 0 }, beginAtZero: true },
+          y: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 11, weight: '500' }, color: '#475569' } },
+        }
+      }
+    }));
+  }
+
+  // 4 — Top cities horizontal bar
+  const ctCtx = document.getElementById('ga4CitiesChart')?.getContext('2d');
+  if (ctCtx && ga4.cities?.length) {
+    charts.push(new Chart(ctCtx, {
+      type: 'bar',
+      data: {
+        labels: ga4.cities.map(c => c.city),
+        datasets: [{ data: ga4.cities.map(c => c.users), backgroundColor: 'rgba(59,127,237,.75)', borderRadius: 6, borderSkipped: false,
+          hoverBackgroundColor: '#3B7FED' }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+        plugins: {
+          legend: { display: false },
+          tooltip: { backgroundColor: 'rgba(11,23,58,.9)', padding: 12, cornerRadius: 10, callbacks: { label: ctx => ` ${ctx.raw} users` } },
+        },
+        scales: {
+          x: { grid: { color: 'rgba(0,0,0,.04)' }, border: { display: false }, ticks: { font: { size: 10 }, color: '#CBD5E1', precision: 0 }, beginAtZero: true },
+          y: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 10, weight: '500' }, color: '#475569' } },
+        }
+      }
+    }));
+  }
+
+  return charts;
+}
+
 async function renderAnalytics() {
   _analyticsCharts.forEach(c => c.destroy());
   _analyticsCharts = [];
 
   document.getElementById('content').innerHTML = `<div class="loading-state"><div class="spinner"></div> Loading…</div>`;
 
-  const [gaData, overview, activity] = await Promise.all([
+  const [gaData, ga4Data, overview, activity] = await Promise.all([
     fetch('/api/analytics/ga').then(r => r.json()).catch(() => ({ configured: false })),
+    fetch('/api/analytics/ga4').then(r => r.json()).catch(() => ({ configured: false })),
     api('/overview').catch(() => ({})),
     api('/activity?limit=2000').catch(() => []),
   ]);
@@ -1311,7 +1422,98 @@ async function renderAnalytics() {
   const pipelineValues = pipelineKeys.map(k => pipeline[k] || 0);
   const pipelineColors = ['#94A3B8','#3B7FED','#8B5CF6','#10B981','#F59E0B','#EF4444','#CBD5E1'];
 
-  const gaEmbed = gaData.configured ? `
+  // Build the GA4 custom-chart section (shown if API is connected)
+  let ga4Section = '';
+  if (ga4Data.configured && !ga4Data.error) {
+    const k = ga4Data.kpis || {};
+    const pagesRows = (ga4Data.pages || []).map(p => {
+      const maxViews = Math.max(...(ga4Data.pages || []).map(x => x.views), 1);
+      const barW = Math.round(p.views / maxViews * 100);
+      const shortPath = p.path.length > 42 ? p.path.slice(0, 42) + '…' : p.path;
+      return `<tr>
+        <td style="padding:7px 10px;font-size:12px;color:var(--text-2);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${p.path}">${shortPath}</td>
+        <td style="padding:7px 10px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="flex:1;height:6px;background:rgba(59,127,237,.12);border-radius:4px;overflow:hidden;">
+              <div style="width:${barW}%;height:100%;background:#3B7FED;border-radius:4px;"></div>
+            </div>
+            <span style="font-size:12px;font-weight:700;color:var(--text);min-width:28px;text-align:right;">${p.views}</span>
+          </div>
+        </td>
+        <td style="padding:7px 10px;text-align:right;font-size:12px;color:${p.engagement >= 60 ? '#10B981' : p.engagement >= 30 ? '#F59E0B' : '#EF4444'};font-weight:600;">${p.engagement}%</td>
+      </tr>`;
+    }).join('');
+
+    ga4Section = `
+    <div class="section-header" style="margin-top:8px;">
+      <div class="section-title">Website Analytics</div>
+      <span style="font-size:11px;color:#10B981;font-weight:600;display:flex;align-items:center;gap:5px;"><span class="live-dot"></span> Live · Google Analytics 4</span>
+    </div>
+
+    <div class="insights-strip" style="margin-bottom:16px;">
+      <div class="insight-tile">
+        <div class="insight-val" data-count="${k.users || 0}">${k.users || 0}</div>
+        <div class="insight-lbl">Active Users</div>
+      </div>
+      <div class="insight-tile">
+        <div class="insight-val" data-count="${k.sessions || 0}">${k.sessions || 0}</div>
+        <div class="insight-lbl">Sessions</div>
+      </div>
+      <div class="insight-tile">
+        <div class="insight-val" data-count="${k.views || 0}">${k.views || 0}</div>
+        <div class="insight-lbl">Page Views</div>
+      </div>
+      <div class="insight-tile">
+        <div class="insight-val" data-count="${k.engagement || 0}">${k.engagement || 0}%</div>
+        <div class="insight-lbl">Engagement Rate</div>
+      </div>
+    </div>
+
+    <div class="charts-grid-2" style="margin-bottom:16px;">
+      <div class="chart-card">
+        <div class="chart-card-title">Users &amp; Sessions — 30 Days</div>
+        <div class="chart-card-sub">Active users vs. total sessions over time</div>
+        <div style="position:relative;height:220px;"><canvas id="ga4TimelineChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-title">Device Breakdown</div>
+        <div class="chart-card-sub">Sessions by device category</div>
+        <div style="position:relative;height:220px;"><canvas id="ga4DeviceChart"></canvas></div>
+      </div>
+    </div>
+    <div class="charts-grid-2" style="margin-bottom:16px;">
+      <div class="chart-card">
+        <div class="chart-card-title">Traffic Channels</div>
+        <div class="chart-card-sub">Sessions by acquisition channel</div>
+        <div style="position:relative;height:${Math.max(180, (ga4Data.sources||[]).length * 36)}px;"><canvas id="ga4SourcesChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-title">Top Cities</div>
+        <div class="chart-card-sub">Active users by location</div>
+        <div style="position:relative;height:${Math.max(180, (ga4Data.cities||[]).length * 36)}px;"><canvas id="ga4CitiesChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:24px;">
+      <div class="chart-card-title">Top Pages</div>
+      <div class="chart-card-sub">Most viewed pages — last 30 days</div>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(226,232,240,.8);">
+            <th style="text-align:left;padding:6px 10px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;">Page</th>
+            <th style="text-align:left;padding:6px 10px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;">Views</th>
+            <th style="text-align:right;padding:6px 10px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;">Engaged</th>
+          </tr>
+        </thead>
+        <tbody>${pagesRows}</tbody>
+      </table>
+    </div>`;
+  } else if (ga4Data.configured && ga4Data.error) {
+    ga4Section = `<div class="ga4-error-notice">GA4 connection error: ${ga4Data.error}</div>`;
+  }
+
+  // Looker Studio embed — kept as fallback when GA4 API isn't connected
+  const gaEmbed = (!ga4Data.configured || ga4Data.error) && gaData.configured ? `
     <div class="section-header" style="margin-top:8px;"><div class="section-title">Website Analytics</div></div>
     <div class="analytics-embed-card">
       <div class="analytics-embed-bar">
@@ -1421,11 +1623,14 @@ async function renderAnalytics() {
       </div>
     </div>
 
+    ${ga4Section}
     ${gaEmbed}`;
 
   animateCounters();
   requestAnimationFrame(() => {
-    _analyticsCharts = initAnalyticsCharts(days, emailsByDay, repliesByDay, pipelineKeys, pipelineValues, pipelineColors, stepCounts, pipeline, totalProspects, cumulativeEmails, dayOfWeekCounts, replyRateByStep);
+    const outreachCharts = initAnalyticsCharts(days, emailsByDay, repliesByDay, pipelineKeys, pipelineValues, pipelineColors, stepCounts, pipeline, totalProspects, cumulativeEmails, dayOfWeekCounts, replyRateByStep);
+    const ga4Charts      = initGA4Charts(ga4Data);
+    _analyticsCharts = [...outreachCharts, ...ga4Charts];
   });
 }
 
