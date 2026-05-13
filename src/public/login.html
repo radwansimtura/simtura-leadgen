@@ -5,91 +5,131 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Simtura Command — Sign In</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
       font-family: 'Inter', -apple-system, sans-serif;
-      background: #f0f4f8;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 28px;
+      gap: 32px;
+      background: #0B1730;
+      position: relative;
+      overflow: hidden;
     }
-    .bg-pattern {
+
+    /* Ambient glow layers */
+    body::before {
+      content: '';
       position: fixed; inset: 0; z-index: 0;
       background:
-        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(8,70,172,0.12) 0%, transparent 60%),
-        #f0f4f8;
+        radial-gradient(ellipse 70% 55% at 50% -10%, rgba(59,127,237,.22) 0%, transparent 65%),
+        radial-gradient(ellipse 40% 40% at 80% 80%, rgba(37,99,235,.1) 0%, transparent 60%);
     }
+
+    /* Subtle grid pattern */
+    body::after {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+    }
+
     .logo {
       position: relative; z-index: 1;
-      display: flex; align-items: center; gap: 12px;
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
     }
-    .logo-mark {
-      width: 44px; height: 44px;
-      background: #0846AC;
-      border-radius: 11px;
-      display: flex; align-items: center; justify-content: center;
-      color: #fff; font-weight: 700; font-size: 20px; letter-spacing: -0.5px;
-      box-shadow: 0 4px 14px rgba(8,70,172,0.3);
+
+    .logo-img {
+      height: 40px; width: auto;
+      filter: brightness(0) invert(1);
+      opacity: .92;
     }
-    .logo-text { font-size: 20px; font-weight: 700; color: #0f172a; letter-spacing: -0.4px; }
-    .logo-text span { color: #0846AC; }
+
+    .logo-sub {
+      font-size: 11px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; color: rgba(255,255,255,.3);
+    }
+
     .card {
       position: relative; z-index: 1;
-      background: #fff;
-      border-radius: 16px;
+      background: rgba(255,255,255,.97);
+      border-radius: 18px;
       padding: 44px 44px 40px;
       width: 100%;
       max-width: 400px;
-      box-shadow: 0 1px 3px rgba(0,0,0,.06), 0 8px 32px rgba(0,0,0,.08);
+      box-shadow: 0 2px 4px rgba(0,0,0,.12), 0 24px 64px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.08);
+      backdrop-filter: blur(12px);
     }
-    h1 { font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 4px; letter-spacing: -0.3px; }
-    .subtitle { font-size: 13px; color: #94a3b8; margin-bottom: 28px; }
-    label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+
+    h1 {
+      font-size: 21px; font-weight: 800; color: #0F172A;
+      margin-bottom: 4px; letter-spacing: -0.4px;
+    }
+    .subtitle { font-size: 13px; color: #94A3B8; margin-bottom: 30px; }
+
+    label { display: block; font-size: 12.5px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+
     .input {
-      width: 100%; padding: 10px 14px;
-      border: 1.5px solid #e2e8f0;
-      border-radius: 8px;
-      font-family: inherit; font-size: 14px; color: #0f172a;
+      width: 100%; padding: 11px 14px;
+      border: 1.5px solid #E2E8F0;
+      border-radius: 9px;
+      font-family: inherit; font-size: 14px; color: #0F172A;
       outline: none; transition: border-color .15s, box-shadow .15s;
       margin-bottom: 16px;
+      background: #FAFBFC;
     }
-    .input:focus { border-color: #0846AC; box-shadow: 0 0 0 3px rgba(8,70,172,.1); }
+    .input:focus {
+      border-color: #3B7FED;
+      box-shadow: 0 0 0 3.5px rgba(59,127,237,.12);
+      background: #fff;
+    }
+
     .btn {
-      width: 100%; padding: 11px;
-      background: #0846AC; color: #fff;
-      border: none; border-radius: 8px;
-      font-family: inherit; font-size: 14px; font-weight: 600;
-      cursor: pointer; transition: background .15s, transform .1s;
+      width: 100%; padding: 12px;
+      background: linear-gradient(135deg, #3B7FED 0%, #2563EB 100%);
+      color: #fff;
+      border: none; border-radius: 9px;
+      font-family: inherit; font-size: 14px; font-weight: 700;
+      cursor: pointer;
+      transition: opacity .15s, box-shadow .15s, transform .1s;
       margin-top: 6px;
+      box-shadow: 0 4px 14px rgba(59,127,237,.4);
+      letter-spacing: .1px;
     }
-    .btn:hover { background: #0638a0; }
+    .btn:hover { opacity: .92; box-shadow: 0 6px 20px rgba(59,127,237,.45); }
     .btn:active { transform: translateY(1px); }
-    .btn:disabled { opacity: .6; cursor: not-allowed; }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+
     .error {
-      background: #fef2f2; border: 1px solid #fecaca;
-      color: #dc2626; font-size: 13px;
+      background: #FEF2F2; border: 1px solid #FECACA;
+      color: #DC2626; font-size: 13px;
       padding: 10px 14px; border-radius: 8px;
       margin-bottom: 14px; display: none;
     }
-    .footer { position: relative; z-index: 1; font-size: 11px; color: #cbd5e1; }
+
+    .footer {
+      position: relative; z-index: 1;
+      font-size: 11px; color: rgba(255,255,255,.18);
+      letter-spacing: .3px;
+    }
   </style>
 </head>
 <body>
-  <div class="bg-pattern"></div>
-
   <div class="logo">
-    <div class="logo-mark">S</div>
-    <div class="logo-text">Simtura <span>Command</span></div>
+    <img src="simtura-logo.png" alt="Simtura" class="logo-img">
+    <span class="logo-sub">Command · Internal</span>
   </div>
 
   <div class="card">
     <h1>Welcome back</h1>
-    <p class="subtitle">Internal platform — authorized access only</p>
+    <p class="subtitle">Authorized access only</p>
     <div class="error" id="errorMsg"></div>
     <form id="loginForm" onsubmit="handleLogin(event)">
       <label for="email">Email</label>
@@ -100,7 +140,7 @@
     </form>
   </div>
 
-  <div class="footer">Simtura Command · Internal use only</div>
+  <div class="footer">© 2026 Simtura · Internal use only</div>
 
   <script>
     async function handleLogin(e) {
