@@ -76,6 +76,21 @@ app.get('/simtura-logo.png', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'simtura-logo.png'));
 });
 
+// Public pixel/beacon — called by simtura.ai when someone clicks "Get Premium"
+// Accepts both GET (pixel) and POST (fetch beacon) so any integration works
+app.use('/track/purchase-attempt', (req, res) => {
+  const source = req.query.source || req.body?.source || 'unknown';
+  const plan   = req.query.plan   || req.body?.plan   || 'premium';
+  db.logActivity('purchase_attempt', JSON.stringify({ source, plan, ip: req.ip }));
+  // Return 1x1 transparent GIF for GET (pixel), or JSON for POST
+  if (req.method === 'GET') {
+    const gif = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+    res.set('Content-Type', 'image/gif').send(gif);
+  } else {
+    res.json({ ok: true });
+  }
+});
+
 // Serve Chart.js from node_modules so it's not CDN-dependent
 app.get('/chart.umd.min.js', (req, res) => {
   res.sendFile(path.resolve(__dirname, '../node_modules/chart.js/dist/chart.umd.min.js'));

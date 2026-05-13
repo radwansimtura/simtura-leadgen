@@ -1,5 +1,6 @@
 const express = require('express');
 const fetch   = require('node-fetch');
+const db      = require('../db/database');
 const router  = express.Router();
 
 // ── OAuth2 token cache ────────────────────────────────────────────────────────
@@ -165,6 +166,17 @@ router.get('/ga4', async (req, res) => {
     console.error('[GA4]', err.message);
     res.json({ configured: true, error: err.message });
   }
+});
+
+// Purchase attempt stats for analytics page
+router.get('/purchases', (req, res) => {
+  const all = db.getRecentActivity(5000).filter(a => a.action === 'purchase_attempt');
+  const byDay = {};
+  all.forEach(a => {
+    const day = new Date(a.created_at).toISOString().slice(0, 10);
+    byDay[day] = (byDay[day] || 0) + 1;
+  });
+  res.json({ total: all.length, byDay });
 });
 
 // Looker Studio embed URL (kept as fallback)

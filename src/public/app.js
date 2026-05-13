@@ -1375,11 +1375,12 @@ async function renderAnalytics() {
 
   document.getElementById('content').innerHTML = `<div class="loading-state"><div class="spinner"></div> Loading…</div>`;
 
-  const [gaData, ga4Data, overview, activity] = await Promise.all([
+  const [gaData, ga4Data, overview, activity, purchaseData] = await Promise.all([
     fetch('/api/analytics/ga').then(r => r.json()).catch(() => ({ configured: false })),
     fetch('/api/analytics/ga4').then(r => r.json()).catch(() => ({ configured: false })),
     api('/overview').catch(() => ({})),
     api('/activity?limit=2000').catch(() => []),
+    fetch('/api/analytics/purchases').then(r => r.json()).catch(() => ({ total: 0, byDay: {} })),
   ]);
 
   const emailsSent     = activity.filter(a => a.action === 'email_sent').length;
@@ -1421,6 +1422,39 @@ async function renderAnalytics() {
   const pipelineKeys   = ['new','contacted','engaged','replied','booked','bounced','unsubscribed'];
   const pipelineValues = pipelineKeys.map(k => pipeline[k] || 0);
   const pipelineColors = ['#94A3B8','#3B7FED','#8B5CF6','#10B981','#F59E0B','#EF4444','#CBD5E1'];
+
+  // Purchase attempts chart (30-day bar)
+  const purchaseDays     = getLast30Days();
+  const purchaseByDay    = purchaseData.byDay || {};
+  const purchaseTotal    = purchaseData.total || 0;
+  const purchaseSection  = `
+    <div class="section-header" style="margin-top:8px;">
+      <div class="section-title">Premium Conversion</div>
+      <span style="font-size:11px;color:#94A3B8;font-weight:500;">Payment system coming soon</span>
+    </div>
+    <div class="chart-card" style="margin-bottom:24px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;">
+        <div>
+          <div class="chart-card-title">Premium Purchase Attempts</div>
+          <div class="chart-card-sub">People who clicked "Get Premium" on simtura.ai — last 30 days</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:28px;font-weight:800;color:var(--brand);letter-spacing:-1px;line-height:1;">${purchaseTotal}</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:2px;">total attempts</div>
+        </div>
+      </div>
+      ${purchaseTotal === 0 ? `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:120px;gap:10px;color:var(--text-3);">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".4"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
+          <div style="font-size:13px;font-weight:500;opacity:.6;">Waiting for first purchase click</div>
+          <div style="font-size:11.5px;opacity:.45;max-width:360px;text-align:center;">Add the tracking pixel to your simtura.ai pricing page — data will appear here instantly</div>
+        </div>` : `<div style="position:relative;height:160px;"><canvas id="purchaseChart"></canvas></div>`}
+      <div style="margin-top:14px;padding:12px 14px;background:var(--surface-alt);border-radius:9px;border:1px dashed rgba(59,127,237,.3);">
+        <div style="font-size:11.5px;font-weight:700;color:var(--text-2);margin-bottom:5px;">Add tracking to simtura.ai</div>
+        <div style="font-size:11px;color:var(--text-3);line-height:1.6;">Drop this on your "Get Premium" button — no backend needed:</div>
+        <code style="display:block;margin-top:8px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:7px;font-size:11px;color:#3B7FED;word-break:break-all;">fetch('https://simtura-leadgen.onrender.com/track/purchase-attempt', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({source:'pricing-page', plan:'premium'}) })</code>
+      </div>
+    </div>`;
 
   // Build the GA4 custom-chart section (shown if API is connected)
   let ga4Section = '';
@@ -1623,6 +1657,7 @@ async function renderAnalytics() {
       </div>
     </div>
 
+    ${purchaseSection}
     ${ga4Section}
     ${gaEmbed}`;
 
@@ -1636,7 +1671,31 @@ async function renderAnalytics() {
       console.log('[Charts] emailTimelineChart el:', testEl, 'parent h:', testEl?.parentElement?.offsetHeight);
       const outreachCharts = initAnalyticsCharts(days, emailsByDay, repliesByDay, pipelineKeys, pipelineValues, pipelineColors, stepCounts, pipeline, totalProspects, cumulativeEmails, dayOfWeekCounts, replyRateByStep);
       const ga4Charts      = initGA4Charts(ga4Data);
-      _analyticsCharts = [...outreachCharts, ...ga4Charts];
+
+      // Purchase attempts chart
+      const pcCtx = document.getElementById('purchaseChart')?.getContext('2d');
+      const purchaseCharts = [];
+      if (pcCtx) {
+        const gPc = pcCtx.createLinearGradient(0, 0, 0, 160);
+        gPc.addColorStop(0, 'rgba(139,92,246,.4)'); gPc.addColorStop(1, 'rgba(139,92,246,.02)');
+        purchaseCharts.push(new Chart(pcCtx, {
+          type: 'bar',
+          data: {
+            labels: purchaseDays.map(d => { const dt = new Date(d+'T12:00:00'); return `${dt.getMonth()+1}/${dt.getDate()}`; }),
+            datasets: [{ data: purchaseDays.map(d => purchaseByDay[d] || 0), backgroundColor: gPc, borderRadius: 6, borderSkipped: false }],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(11,23,58,.88)', padding: 12, cornerRadius: 10, callbacks: { label: ctx => ` ${ctx.raw} attempt${ctx.raw !== 1 ? 's' : ''}` } } },
+            scales: {
+              x: { grid: { display: false }, border: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 10 }, color: '#CBD5E1' } },
+              y: { grid: { color: 'rgba(0,0,0,.04)' }, border: { display: false }, ticks: { font: { size: 10 }, color: '#CBD5E1', precision: 0 }, beginAtZero: true },
+            },
+          }
+        }));
+      }
+
+      _analyticsCharts = [...outreachCharts, ...ga4Charts, ...purchaseCharts];
       console.log('[Charts] created:', _analyticsCharts.length, 'charts');
     } catch (e) {
       console.error('[Charts] init error:', e);
