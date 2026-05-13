@@ -21,7 +21,10 @@ async function getAccessToken() {
   });
 
   const data = await res.json();
-  if (!data.access_token) throw new Error(data.error_description || 'Token refresh failed');
+  if (!data.access_token) {
+    console.error('[GA4] Token refresh failed:', JSON.stringify(data));
+    throw new Error(data.error_description || data.error || 'Token refresh failed');
+  }
 
   _tokenCache = { token: data.access_token, exp: Date.now() + 55 * 60 * 1000 };
   return data.access_token;
