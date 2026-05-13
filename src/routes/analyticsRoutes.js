@@ -135,23 +135,31 @@ router.get('/ga4', async (req, res) => {
       throw new Error(`${overview.error.message} (status: ${overview.error.status}, code: ${overview.error.code})`);
     }
 
-    const totals = parseTotals(overview);
+    // GA4 reports without dimensions return data in rows[0], not totals
+    const mv = overview.rows?.[0]?.metricValues || [];
+    const g  = (i) => parseFloat(mv[i]?.value || 0) || 0;
 
-    res.json({
-      configured: true,
-      kpis: {
-        users:      totals[0] || 0,
-        sessions:   totals[1] || 0,
-        views:      totals[2] || 0,
-        engagement: Math.round((totals[3] || 0) * 100),
-        bounce:     Math.round((totals[4] || 0) * 100),
-        newUsers:   totals[5] || 0,
-      },
+    const parsed = {
       timeline: parseRows(timeline).map(r => ({ date: r.dims[0], users: r.metrics[0], sessions: r.metrics[1] })),
       sources:  parseRows(sources).map(r => ({ channel: r.dims[0], sessions: r.metrics[0] })),
       devices:  parseRows(devices).map(r => ({ device: r.dims[0], sessions: r.metrics[0] })),
       pages:    parseRows(pages).map(r => ({ path: r.dims[0], views: r.metrics[0], engagement: Math.round(r.metrics[1] * 100) })),
       cities:   parseRows(cities).map(r => ({ city: r.dims[0], users: r.metrics[0] })),
+    };
+
+    console.log('[GA4] rows:', overview.rows?.length, '| timeline:', parsed.timeline.length, '| sources:', parsed.sources.length, '| devices:', parsed.devices.length);
+
+    res.json({
+      configured: true,
+      kpis: {
+        users:      g(0),
+        sessions:   g(1),
+        views:      g(2),
+        engagement: Math.round(g(3) * 100),
+        bounce:     Math.round(g(4) * 100),
+        newUsers:   g(5),
+      },
+      ...parsed,
     });
   } catch (err) {
     console.error('[GA4]', err.message);

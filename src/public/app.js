@@ -1269,7 +1269,7 @@ function initGA4Charts(ga4) {
 
   // 1 — Users & Sessions timeline
   const tlCtx = document.getElementById('ga4TimelineChart')?.getContext('2d');
-  if (tlCtx && ga4.timeline?.length) {
+  if (tlCtx) {
     const g1 = tlCtx.createLinearGradient(0, 0, 0, 220);
     g1.addColorStop(0, 'rgba(59,127,237,.3)'); g1.addColorStop(1, 'rgba(59,127,237,0)');
     const g2 = tlCtx.createLinearGradient(0, 0, 0, 220);
@@ -1300,7 +1300,7 @@ function initGA4Charts(ga4) {
 
   // 2 — Device breakdown doughnut
   const dvCtx = document.getElementById('ga4DeviceChart')?.getContext('2d');
-  if (dvCtx && ga4.devices?.length) {
+  if (dvCtx) {
     const dvColors = { desktop: '#3B7FED', mobile: '#8B5CF6', tablet: '#10B981' };
     charts.push(new Chart(dvCtx, {
       type: 'doughnut',
@@ -1320,7 +1320,7 @@ function initGA4Charts(ga4) {
 
   // 3 — Traffic sources horizontal bar
   const srCtx = document.getElementById('ga4SourcesChart')?.getContext('2d');
-  if (srCtx && ga4.sources?.length) {
+  if (srCtx) {
     const srColors = ['#3B7FED','#8B5CF6','#10B981','#F59E0B','#EF4444','#06B6D4','#EC4899','#94A3B8'];
     charts.push(new Chart(srCtx, {
       type: 'bar',
@@ -1344,7 +1344,7 @@ function initGA4Charts(ga4) {
 
   // 4 — Top cities horizontal bar
   const ctCtx = document.getElementById('ga4CitiesChart')?.getContext('2d');
-  if (ctCtx && ga4.cities?.length) {
+  if (ctCtx) {
     charts.push(new Chart(ctCtx, {
       type: 'bar',
       data: {
