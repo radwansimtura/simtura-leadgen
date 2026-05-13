@@ -1631,9 +1631,13 @@ async function renderAnalytics() {
   // the canvas containers before Chart.js measures their dimensions
   setTimeout(() => {
     try {
+      const testEl = document.getElementById('emailTimelineChart');
+      console.log('[Charts] Chart.js available:', typeof Chart);
+      console.log('[Charts] emailTimelineChart el:', testEl, 'parent h:', testEl?.parentElement?.offsetHeight);
       const outreachCharts = initAnalyticsCharts(days, emailsByDay, repliesByDay, pipelineKeys, pipelineValues, pipelineColors, stepCounts, pipeline, totalProspects, cumulativeEmails, dayOfWeekCounts, replyRateByStep);
       const ga4Charts      = initGA4Charts(ga4Data);
       _analyticsCharts = [...outreachCharts, ...ga4Charts];
+      console.log('[Charts] created:', _analyticsCharts.length, 'charts');
     } catch (e) {
       console.error('[Charts] init error:', e);
     }
