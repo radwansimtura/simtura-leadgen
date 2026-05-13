@@ -71,6 +71,11 @@ app.get('/unsubscribe', (req, res) => {
   res.send(unsubPage('Successfully unsubscribed', `${prospect.organization} has been removed from all Simtura.ai outreach.`, true));
 });
 
+// Public assets (logo etc — needed before auth)
+app.get('/simtura-logo.png', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'simtura-logo.png'));
+});
+
 // Serve login page (public)
 app.get('/login', (req, res) => {
   if (req.session?.user) return res.redirect('/');
