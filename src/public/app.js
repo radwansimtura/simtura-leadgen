@@ -1627,11 +1627,17 @@ async function renderAnalytics() {
     ${gaEmbed}`;
 
   animateCounters();
-  requestAnimationFrame(() => {
-    const outreachCharts = initAnalyticsCharts(days, emailsByDay, repliesByDay, pipelineKeys, pipelineValues, pipelineColors, stepCounts, pipeline, totalProspects, cumulativeEmails, dayOfWeekCounts, replyRateByStep);
-    const ga4Charts      = initGA4Charts(ga4Data);
-    _analyticsCharts = [...outreachCharts, ...ga4Charts];
-  });
+  // Use setTimeout instead of rAF — gives the browser time to fully lay out
+  // the canvas containers before Chart.js measures their dimensions
+  setTimeout(() => {
+    try {
+      const outreachCharts = initAnalyticsCharts(days, emailsByDay, repliesByDay, pipelineKeys, pipelineValues, pipelineColors, stepCounts, pipeline, totalProspects, cumulativeEmails, dayOfWeekCounts, replyRateByStep);
+      const ga4Charts      = initGA4Charts(ga4Data);
+      _analyticsCharts = [...outreachCharts, ...ga4Charts];
+    } catch (e) {
+      console.error('[Charts] init error:', e);
+    }
+  }, 120);
 }
 
 // ── View: Revenue ─────────────────────────────────────────────────────────────
