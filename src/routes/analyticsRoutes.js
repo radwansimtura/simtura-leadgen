@@ -3,6 +3,21 @@ const fetch   = require('node-fetch');
 const db      = require('../db/database');
 const router  = express.Router();
 
+// ── Simtura.ai PostgreSQL pool (lazy-init, reused across requests) ────────────
+
+let _simturaPool = null;
+function getSimturaPool() {
+  if (_simturaPool) return _simturaPool;
+  const { Pool } = require('pg');
+  _simturaPool = new Pool({
+    connectionString: process.env.SIMTURA_DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+    max: 3,
+    idleTimeoutMillis: 30000,
+  });
+  return _simturaPool;
+}
+
 
 // ── OAuth2 token cache ────────────────────────────────────────────────────────
 
@@ -180,18 +195,47 @@ router.get('/purchases', (req, res) => {
   res.json({ total: all.length, byDay });
 });
 
-// Simtura.ai registered user signups — proxied from the main app's internal API
+// Simtura.ai registered user signups — direct PostgreSQL query
 router.get('/signups', async (req, res) => {
-  const appUrl = process.env.SIMTURA_APP_URL;
-  const key    = process.env.SIMTURA_INTERNAL_KEY;
-  if (!appUrl || !key) return res.json({ configured: false });
+  if (!process.env.SIMTURA_DATABASE_URL) return res.json({ configured: false });
   try {
-    const r = await fetch(`${appUrl}/api/internal/signups`, {
-      headers: { 'x-simtura-key': key },
+    const pool = getSimturaPool();
+    const [totals, users, daily] = await Promise.all([
+      pool.query(`
+        SELECT
+          COUNT(*)                                                          AS total,
+          COUNT(*) FILTER (WHERE tier = 'pro')                             AS pro_count,
+          COUNT(*) FILTER (WHERE tier = 'free')                            AS free_count,
+          COUNT(*) FILTER (WHERE "createdAt" >= NOW() - INTERVAL '30 days') AS last_30
+        FROM users
+      `),
+      pool.query(`
+        SELECT id, name, email, tier, "createdAt", "proSince", "organizationId"
+        FROM users
+        ORDER BY "createdAt" DESC
+        LIMIT 300
+      `),
+      pool.query(`
+        SELECT DATE("createdAt") AS day, COUNT(*) AS count
+        FROM users
+        WHERE "createdAt" >= NOW() - INTERVAL '30 days'
+        GROUP BY DATE("createdAt")
+        ORDER BY day
+      `),
+    ]);
+    const t = totals.rows[0];
+    res.json({
+      configured: true,
+      total:     parseInt(t.total),
+      proCount:  parseInt(t.pro_count),
+      freeCount: parseInt(t.free_count),
+      last30:    parseInt(t.last_30),
+      users:     users.rows,
+      daily:     daily.rows.map(r => ({
+        day:   r.day instanceof Date ? r.day.toISOString().slice(0, 10) : String(r.day),
+        count: parseInt(r.count),
+      })),
     });
-    if (!r.ok) throw new Error(`Upstream ${r.status}`);
-    const data = await r.json();
-    res.json(data);
   } catch (err) {
     console.error('[Signups]', err.message);
     res.json({ configured: true, error: err.message });
