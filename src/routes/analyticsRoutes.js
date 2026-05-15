@@ -3,6 +3,7 @@ const fetch   = require('node-fetch');
 const db      = require('../db/database');
 const router  = express.Router();
 
+
 // ── OAuth2 token cache ────────────────────────────────────────────────────────
 
 let _tokenCache = { token: null, exp: 0 };
@@ -177,6 +178,24 @@ router.get('/purchases', (req, res) => {
     byDay[day] = (byDay[day] || 0) + 1;
   });
   res.json({ total: all.length, byDay });
+});
+
+// Simtura.ai registered user signups — proxied from the main app's internal API
+router.get('/signups', async (req, res) => {
+  const appUrl = process.env.SIMTURA_APP_URL;
+  const key    = process.env.SIMTURA_INTERNAL_KEY;
+  if (!appUrl || !key) return res.json({ configured: false });
+  try {
+    const r = await fetch(`${appUrl}/api/internal/signups`, {
+      headers: { 'x-simtura-key': key },
+    });
+    if (!r.ok) throw new Error(`Upstream ${r.status}`);
+    const data = await r.json();
+    res.json(data);
+  } catch (err) {
+    console.error('[Signups]', err.message);
+    res.json({ configured: true, error: err.message });
+  }
 });
 
 // Looker Studio embed URL (kept as fallback)

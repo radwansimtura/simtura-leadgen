@@ -1369,18 +1369,103 @@ function initGA4Charts(ga4) {
   return charts;
 }
 
+function buildSignupsSection(data) {
+  if (!data || !data.configured) return '';
+  if (data.error) return `<div class="ga4-error-notice" style="margin-top:8px;">User signup error: ${data.error}</div>`;
+
+  const users     = data.users || [];
+  const proRate   = data.total > 0 ? ((data.proCount / data.total) * 100).toFixed(1) : '0.0';
+  const avgPerDay = data.last30 > 0 ? (data.last30 / 30).toFixed(1) : '0.0';
+
+  const rows = users.slice(0, 100).map((u, i) => {
+    const tierColor = u.tier === 'pro' ? '#10B981' : '#94A3B8';
+    const tierLabel = u.tier === 'pro' ? 'Pro' : 'Free';
+    const org = u.organizationId ? `<span style="font-size:10px;background:rgba(59,127,237,.12);color:#3B7FED;border-radius:4px;padding:1px 6px;margin-left:4px;">Org</span>` : '';
+    return `<tr style="border-bottom:1px solid rgba(226,232,240,.5);">
+      <td style="padding:7px 10px;font-size:12px;color:var(--text-2);">${i + 1}</td>
+      <td style="padding:7px 10px;font-size:12px;color:var(--text);font-weight:500;">${u.name || '—'}${org}</td>
+      <td style="padding:7px 10px;font-size:12px;color:var(--text-2);">${u.email}</td>
+      <td style="padding:7px 10px;"><span style="font-size:11px;font-weight:700;color:${tierColor};">${tierLabel}</span></td>
+      <td style="padding:7px 10px;font-size:12px;color:var(--text-3);">${fmtDate(u.createdAt)}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <div class="section-header" style="margin-top:8px;">
+      <div class="section-title">Simtura.ai User Signups</div>
+      <span style="font-size:11px;color:#10B981;font-weight:600;display:flex;align-items:center;gap:5px;"><span class="live-dot"></span> Live · simtura.ai database</span>
+    </div>
+
+    <div class="insights-strip" style="margin-bottom:16px;">
+      <div class="insight-tile">
+        <div class="insight-val" data-count="${data.total}">${data.total}</div>
+        <div class="insight-lbl">Total Registered</div>
+      </div>
+      <div class="insight-tile">
+        <div class="insight-val" data-count="${data.proCount}">${data.proCount}</div>
+        <div class="insight-lbl">Pro Accounts</div>
+      </div>
+      <div class="insight-tile">
+        <div class="insight-val">${proRate}%</div>
+        <div class="insight-lbl">Pro Conversion</div>
+      </div>
+      <div class="insight-tile">
+        <div class="insight-val">${avgPerDay}</div>
+        <div class="insight-lbl">Signups / day (30d)</div>
+      </div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:16px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;">
+        <div>
+          <div class="chart-card-title">Signup Activity — Last 30 Days</div>
+          <div class="chart-card-sub">New accounts registered per day</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:24px;font-weight:800;color:var(--brand);letter-spacing:-1px;line-height:1;">${data.last30}</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:2px;">last 30 days</div>
+        </div>
+      </div>
+      <div style="position:relative;height:160px;"><canvas id="signupsChart"></canvas></div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:24px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div>
+          <div class="chart-card-title">Registered Users</div>
+          <div class="chart-card-sub">Most recent ${Math.min(users.length, 100)} of ${data.total} accounts</div>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;min-width:480px;">
+          <thead>
+            <tr style="border-bottom:1px solid rgba(226,232,240,.8);">
+              <th style="text-align:left;padding:6px 10px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;">#</th>
+              <th style="text-align:left;padding:6px 10px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;">Name</th>
+              <th style="text-align:left;padding:6px 10px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;">Email</th>
+              <th style="text-align:left;padding:6px 10px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;">Tier</th>
+              <th style="text-align:left;padding:6px 10px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;">Joined</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
 async function renderAnalytics() {
   _analyticsCharts.forEach(c => c.destroy());
   _analyticsCharts = [];
 
   document.getElementById('content').innerHTML = `<div class="loading-state"><div class="spinner"></div> Loading…</div>`;
 
-  const [gaData, ga4Data, overview, activity, purchaseData] = await Promise.all([
+  const [gaData, ga4Data, overview, activity, purchaseData, signupData] = await Promise.all([
     fetch('/api/analytics/ga').then(r => r.json()).catch(() => ({ configured: false })),
     fetch('/api/analytics/ga4').then(r => r.json()).catch(() => ({ configured: false })),
     api('/overview').catch(() => ({})),
     api('/activity?limit=2000').catch(() => []),
     fetch('/api/analytics/purchases').then(r => r.json()).catch(() => ({ total: 0, byDay: {} })),
+    fetch('/api/analytics/signups').then(r => r.json()).catch(() => ({ configured: false })),
   ]);
 
   const emailsSent     = activity.filter(a => a.action === 'email_sent').length;
@@ -1658,6 +1743,7 @@ async function renderAnalytics() {
     </div>
 
     ${purchaseSection}
+    ${buildSignupsSection(signupData)}
     ${ga4Section}
     ${gaEmbed}`;
 
@@ -1695,7 +1781,33 @@ async function renderAnalytics() {
         }));
       }
 
-      _analyticsCharts = [...outreachCharts, ...ga4Charts, ...purchaseCharts];
+      // Signups chart
+      const signupsCharts = [];
+      const signupCtx = document.getElementById('signupsChart')?.getContext('2d');
+      if (signupCtx && signupData?.configured && !signupData?.error) {
+        const signupDays   = getLast30Days();
+        const dailyMap     = {};
+        (signupData.daily || []).forEach(r => { dailyMap[r.day] = r.count; });
+        const gSu = signupCtx.createLinearGradient(0, 0, 0, 160);
+        gSu.addColorStop(0, 'rgba(16,185,129,.35)'); gSu.addColorStop(1, 'rgba(16,185,129,.02)');
+        signupsCharts.push(new Chart(signupCtx, {
+          type: 'bar',
+          data: {
+            labels: signupDays.map(d => { const dt = new Date(d + 'T12:00:00'); return `${dt.getMonth()+1}/${dt.getDate()}`; }),
+            datasets: [{ data: signupDays.map(d => dailyMap[d] || 0), backgroundColor: gSu, borderRadius: 5, borderSkipped: false }],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(11,23,58,.88)', padding: 12, cornerRadius: 10, callbacks: { label: ctx => ` ${ctx.raw} signup${ctx.raw !== 1 ? 's' : ''}` } } },
+            scales: {
+              x: { grid: { display: false }, border: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 10 }, color: '#CBD5E1' } },
+              y: { grid: { color: 'rgba(0,0,0,.04)' }, border: { display: false }, ticks: { font: { size: 10 }, color: '#CBD5E1', precision: 0 }, beginAtZero: true },
+            },
+          },
+        }));
+      }
+
+      _analyticsCharts = [...outreachCharts, ...ga4Charts, ...purchaseCharts, ...signupsCharts];
       console.log('[Charts] created:', _analyticsCharts.length, 'charts');
     } catch (e) {
       console.error('[Charts] init error:', e);
