@@ -203,23 +203,23 @@ router.get('/signups', async (req, res) => {
     const [totals, users, daily] = await Promise.all([
       pool.query(`
         SELECT
-          COUNT(*)                                                          AS total,
-          COUNT(*) FILTER (WHERE tier = 'pro')                             AS pro_count,
-          COUNT(*) FILTER (WHERE tier = 'free')                            AS free_count,
-          COUNT(*) FILTER (WHERE "createdAt" >= NOW() - INTERVAL '30 days') AS last_30
+          COUNT(*)                                                           AS total,
+          COUNT(*) FILTER (WHERE tier = 'pro')                              AS pro_count,
+          COUNT(*) FILTER (WHERE tier = 'free')                             AS free_count,
+          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')  AS last_30
         FROM users
       `),
       pool.query(`
-        SELECT id, name, email, tier, "createdAt", "proSince", "organizationId"
+        SELECT id, name, email, tier, created_at AS "createdAt", pro_since AS "proSince", organization_id AS "organizationId"
         FROM users
-        ORDER BY "createdAt" DESC
+        ORDER BY created_at DESC
         LIMIT 300
       `),
       pool.query(`
-        SELECT DATE("createdAt") AS day, COUNT(*) AS count
+        SELECT DATE(created_at) AS day, COUNT(*) AS count
         FROM users
-        WHERE "createdAt" >= NOW() - INTERVAL '30 days'
-        GROUP BY DATE("createdAt")
+        WHERE created_at >= NOW() - INTERVAL '30 days'
+        GROUP BY DATE(created_at)
         ORDER BY day
       `),
     ]);
