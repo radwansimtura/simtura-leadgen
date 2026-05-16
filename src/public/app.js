@@ -1420,7 +1420,7 @@ function buildSignupsSection(data) {
       <td style="padding:7px 10px;"><span style="font-size:11px;font-weight:700;color:${tierColor};">${tierLabel}</span></td>
       <td style="padding:7px 10px;font-size:12px;color:var(--text-3);">${fmtDate(u.createdAt)}</td>
       <td style="padding:7px 10px;text-align:right;">
-        <button onclick="deleteSimturaUser('${u.id}','${(u.email||'').replace(/'/g,"\\'")}','${(u.name||'').replace(/'/g,"\\'")}\")"
+        <button data-uid="${u.id}" data-email="${(u.email||'').replace(/"/g,'&quot;')}" data-name="${(u.name||'').replace(/"/g,'&quot;')}" onclick="deleteSimturaUser(this.dataset.uid,this.dataset.email,this.dataset.name)"
           style="background:none;border:1px solid rgba(239,68,68,.35);color:#ef4444;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-weight:600;transition:background .15s;"
           onmouseover="this.style.background='rgba(239,68,68,.08)'" onmouseout="this.style.background='none'">
           Delete
