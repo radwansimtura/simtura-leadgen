@@ -1369,6 +1369,26 @@ function initGA4Charts(ga4) {
   return charts;
 }
 
+async function upgradeSimturaUser(id, email) {
+  const btn = document.getElementById(`upgrade-btn-${id}`);
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    const res = await fetch(`/api/analytics/signups/${id}/upgrade`, { method: 'PATCH' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || res.statusText);
+    if (btn) {
+      btn.replaceWith(Object.assign(document.createElement('span'), {
+        style: 'font-size:10px;color:#10B981;font-weight:700;padding:0 4px;',
+        textContent: '✓ Pro',
+      }));
+    }
+    toast(`${email} upgraded to Pro`, 'success');
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = '↑ Pro'; }
+    toast(`Upgrade failed: ${err.message}`, 'error');
+  }
+}
+
 async function deleteSimturaUser(id, email, name) {
   showModal(`
     <div style="padding:8px 4px;">
@@ -1419,7 +1439,12 @@ function buildSignupsSection(data) {
       <td style="padding:7px 10px;font-size:12px;color:var(--text-2);">${u.email}</td>
       <td style="padding:7px 10px;"><span style="font-size:11px;font-weight:700;color:${tierColor};">${tierLabel}</span></td>
       <td style="padding:7px 10px;font-size:12px;color:var(--text-3);">${fmtDate(u.createdAt)}</td>
-      <td style="padding:7px 10px;text-align:right;">
+      <td style="padding:7px 10px;text-align:right;white-space:nowrap;display:flex;gap:6px;justify-content:flex-end;align-items:center;">
+        ${u.tier !== 'pro' ? `<button id="upgrade-btn-${u.id}" data-uid="${u.id}" data-email="${(u.email||'').replace(/"/g,'&quot;')}" onclick="upgradeSimturaUser(this.dataset.uid,this.dataset.email)"
+          style="background:none;border:1px solid rgba(16,185,129,.4);color:#10B981;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-weight:600;transition:background .15s;"
+          onmouseover="this.style.background='rgba(16,185,129,.1)'" onmouseout="this.style.background='none'">
+          ↑ Pro
+        </button>` : '<span style="font-size:10px;color:#10B981;font-weight:700;padding:0 4px;">✓ Pro</span>'}
         <button data-uid="${u.id}" data-email="${(u.email||'').replace(/"/g,'&quot;')}" data-name="${(u.name||'').replace(/"/g,'&quot;')}" onclick="deleteSimturaUser(this.dataset.uid,this.dataset.email,this.dataset.name)"
           style="background:none;border:1px solid rgba(239,68,68,.35);color:#ef4444;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-weight:600;transition:background .15s;"
           onmouseover="this.style.background='rgba(239,68,68,.08)'" onmouseout="this.style.background='none'">
