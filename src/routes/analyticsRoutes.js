@@ -242,6 +242,22 @@ router.get('/signups', async (req, res) => {
   }
 });
 
+// Delete a Simtura.ai user account by ID
+router.delete('/signups/:id', async (req, res) => {
+  if (!process.env.SIMTURA_DATABASE_URL) return res.status(503).json({ error: 'DB not configured' });
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ error: 'Missing id' });
+  try {
+    const pool = getSimturaPool();
+    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id, email', [id]);
+    if (result.rowCount === 0) return res.status(404).json({ error: 'User not found' });
+    res.json({ ok: true, deleted: result.rows[0] });
+  } catch (err) {
+    console.error('[Signups delete]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Looker Studio embed URL (kept as fallback)
 router.get('/ga', (req, res) => {
   const embedUrl = process.env.LOOKER_STUDIO_URL;

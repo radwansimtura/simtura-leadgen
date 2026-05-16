@@ -1369,6 +1369,38 @@ function initGA4Charts(ga4) {
   return charts;
 }
 
+async function deleteSimturaUser(id, email, name) {
+  showModal(`
+    <div style="padding:8px 4px;">
+      <div style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px;">Delete account?</div>
+      <div style="font-size:13px;color:var(--text-2);line-height:1.6;margin-bottom:20px;">
+        This will permanently delete <strong>${name || email}</strong> (<span style="color:#ef4444;">${email}</span>) from Simtura.ai.<br>
+        This cannot be undone.
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button onclick="closeModal()" style="padding:8px 18px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);font-size:13px;cursor:pointer;font-weight:600;">Cancel</button>
+        <button onclick="confirmDeleteSimturaUser('${id}','${email}')" style="padding:8px 18px;border-radius:8px;border:none;background:#ef4444;color:#fff;font-size:13px;cursor:pointer;font-weight:700;">Delete</button>
+      </div>
+    </div>
+  `);
+}
+
+async function confirmDeleteSimturaUser(id, email) {
+  closeModal();
+  const row = document.getElementById(`user-row-${id}`);
+  if (row) { row.style.opacity = '0.4'; row.style.pointerEvents = 'none'; }
+  try {
+    const res = await fetch(`/api/analytics/signups/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || res.statusText);
+    if (row) row.remove();
+    toast(`Deleted ${email}`, 'success');
+  } catch (err) {
+    if (row) { row.style.opacity = '1'; row.style.pointerEvents = ''; }
+    toast(`Delete failed: ${err.message}`, 'error');
+  }
+}
+
 function buildSignupsSection(data) {
   if (!data || !data.configured) return '';
   if (data.error) return `<div class="ga4-error-notice" style="margin-top:8px;">User signup error: ${data.error}</div>`;
@@ -1381,12 +1413,19 @@ function buildSignupsSection(data) {
     const tierColor = u.tier === 'pro' ? '#10B981' : '#94A3B8';
     const tierLabel = u.tier === 'pro' ? 'Pro' : 'Free';
     const org = u.organizationId ? `<span style="font-size:10px;background:rgba(59,127,237,.12);color:#3B7FED;border-radius:4px;padding:1px 6px;margin-left:4px;">Org</span>` : '';
-    return `<tr style="border-bottom:1px solid rgba(226,232,240,.5);">
+    return `<tr id="user-row-${u.id}" style="border-bottom:1px solid rgba(226,232,240,.5);">
       <td style="padding:7px 10px;font-size:12px;color:var(--text-2);">${i + 1}</td>
       <td style="padding:7px 10px;font-size:12px;color:var(--text);font-weight:500;">${u.name || '—'}${org}</td>
       <td style="padding:7px 10px;font-size:12px;color:var(--text-2);">${u.email}</td>
       <td style="padding:7px 10px;"><span style="font-size:11px;font-weight:700;color:${tierColor};">${tierLabel}</span></td>
       <td style="padding:7px 10px;font-size:12px;color:var(--text-3);">${fmtDate(u.createdAt)}</td>
+      <td style="padding:7px 10px;text-align:right;">
+        <button onclick="deleteSimturaUser('${u.id}','${(u.email||'').replace(/'/g,"\\'")}','${(u.name||'').replace(/'/g,"\\'")}\")"
+          style="background:none;border:1px solid rgba(239,68,68,.35);color:#ef4444;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-weight:600;transition:background .15s;"
+          onmouseover="this.style.background='rgba(239,68,68,.08)'" onmouseout="this.style.background='none'">
+          Delete
+        </button>
+      </td>
     </tr>`;
   }).join('');
 
@@ -1445,6 +1484,7 @@ function buildSignupsSection(data) {
               <th style="text-align:left;padding:6px 10px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;">Email</th>
               <th style="text-align:left;padding:6px 10px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;">Tier</th>
               <th style="text-align:left;padding:6px 10px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;">Joined</th>
+              <th style="padding:6px 10px;"></th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
