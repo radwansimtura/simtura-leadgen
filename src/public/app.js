@@ -99,6 +99,12 @@ function stepLabel(seqStep) {
   return `Step ${seqStep} sent`;
 }
 
+// info circle with hover tooltip — light=true for white-on-color cards
+function infoIcon(tip, light = false) {
+  const color = light ? 'rgba(255,255,255,.65)' : 'var(--text-3)';
+  return `<i class="info-icon" data-tip="${tip.replace(/"/g,'&quot;')}" style="color:${color};border-color:${color};opacity:.7;">i</i>`;
+}
+
 function activityDesc(item) {
   try {
     const d = item.details ? JSON.parse(item.details) : {};
@@ -1463,19 +1469,19 @@ function buildSignupsSection(data) {
     <div class="insights-strip" style="margin-bottom:16px;">
       <div class="insight-tile">
         <div class="insight-val" data-count="${data.total}">${data.total}</div>
-        <div class="insight-lbl">Total Registered</div>
+        <div class="insight-lbl">Total Registered ${infoIcon('All accounts ever created on simtura.ai — includes both free and pro tiers.')}</div>
       </div>
       <div class="insight-tile">
         <div class="insight-val" data-count="${data.proCount}">${data.proCount}</div>
-        <div class="insight-lbl">Pro Accounts</div>
+        <div class="insight-lbl">Pro Accounts ${infoIcon('Accounts with tier = "pro" in the database — upgraded either by payment or manually.')}</div>
       </div>
       <div class="insight-tile">
         <div class="insight-val">${proRate}%</div>
-        <div class="insight-lbl">Pro Conversion</div>
+        <div class="insight-lbl">Pro Conversion ${infoIcon('Pro accounts ÷ total accounts × 100. What % of all registered users are on the Pro tier.')}</div>
       </div>
       <div class="insight-tile">
         <div class="insight-val">${avgPerDay}</div>
-        <div class="insight-lbl">Signups / day (30d)</div>
+        <div class="insight-lbl">Signups / day (30d) ${infoIcon('New accounts registered in the last 30 days divided by 30.')}</div>
       </div>
     </div>
 
@@ -1539,7 +1545,7 @@ async function renderAnalytics() {
   const booked         = overview.booked || 0;
   const pipeline       = overview.pipeline || {};
   const totalProspects = Object.values(pipeline).reduce((a,b)=>a+b,0) || overview.totalProspects || 0;
-  const bookingRate    = emailsSent ? ((booked / emailsSent) * 100).toFixed(1) : '0.0';
+  const bookingRate    = totalProspects ? ((booked / totalProspects) * 100).toFixed(1) : '0.0';
 
   const stepCounts = [0,0,0,0,0];
   activity.filter(a => a.action === 'email_sent').forEach(a => {
@@ -1564,6 +1570,7 @@ async function renderAnalytics() {
 
   const cumulativeEmails = days.map((d, i) => days.slice(0,i+1).reduce((acc,day) => acc+(emailsByDay[day]||0), 0));
 
+  const emailsLast30 = days.reduce((acc, d) => acc + (emailsByDay[d] || 0), 0);
   const activeDays = days.filter(d => (emailsByDay[d]||0) > 0).length;
   const DOW_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const bestDayName = emailsSent > 0 ? DOW_NAMES[dayOfWeekCounts.indexOf(Math.max(...dayOfWeekCounts))] : '—';
@@ -1637,19 +1644,19 @@ async function renderAnalytics() {
     <div class="insights-strip" style="margin-bottom:16px;">
       <div class="insight-tile">
         <div class="insight-val" data-count="${k.users || 0}">${k.users || 0}</div>
-        <div class="insight-lbl">Active Users</div>
+        <div class="insight-lbl">Active Users ${infoIcon('Unique users who had at least one engaged session on simtura.ai in the last 30 days (GA4 activeUsers metric).')}</div>
       </div>
       <div class="insight-tile">
         <div class="insight-val" data-count="${k.sessions || 0}">${k.sessions || 0}</div>
-        <div class="insight-lbl">Sessions</div>
+        <div class="insight-lbl">Sessions ${infoIcon('Total sessions started on simtura.ai in the last 30 days. One user can have multiple sessions.')}</div>
       </div>
       <div class="insight-tile">
         <div class="insight-val" data-count="${k.views || 0}">${k.views || 0}</div>
-        <div class="insight-lbl">Page Views</div>
+        <div class="insight-lbl">Page Views ${infoIcon('Total page views (screenPageViews) across all sessions in the last 30 days.')}</div>
       </div>
       <div class="insight-tile">
         <div class="insight-val" data-count="${k.engagement || 0}">${k.engagement || 0}%</div>
-        <div class="insight-lbl">Engagement Rate</div>
+        <div class="insight-lbl">Engagement Rate ${infoIcon('% of sessions that were "engaged" — lasted longer than 10 seconds, had a conversion event, or had 2+ page views.')}</div>
       </div>
     </div>
 
@@ -1720,25 +1727,25 @@ async function renderAnalytics() {
       <div class="kpi-card blue">
         <span class="kpi-icon">📧</span>
         <div class="kpi-value" data-count="${emailsSent}">0</div>
-        <div class="kpi-label">Total Emails Sent</div>
+        <div class="kpi-label">Total Emails Sent ${infoIcon('All outreach emails dispatched through the automated sequence, across every prospect and every sequence step.', true)}</div>
         <span class="kpi-sub">${totalProspects} prospects in pipeline</span>
       </div>
       <div class="kpi-card green">
         <span class="kpi-icon">💬</span>
         <div class="kpi-value" data-count="${replyRate}">0.0</div>
-        <div class="kpi-label">Reply Rate %</div>
+        <div class="kpi-label">Reply Rate % ${infoIcon('Replies received ÷ emails sent × 100. Counts any reply logged in the activity feed, including auto-replies.', true)}</div>
         <span class="kpi-sub">${repliesCount} total replies received</span>
       </div>
       <div class="kpi-card amber">
         <span class="kpi-icon">📅</span>
         <div class="kpi-value" data-count="${booked}">0</div>
-        <div class="kpi-label">Demos Booked</div>
-        <span class="kpi-sub">${bookingRate}% booking conversion</span>
+        <div class="kpi-label">Demos Booked ${infoIcon('Prospects whose pipeline status is "Booked" — people who agreed to a demo or discovery call.', true)}</div>
+        <span class="kpi-sub">${bookingRate}% of prospects converted</span>
       </div>
       <div class="kpi-card purple">
         <span class="kpi-icon">👥</span>
         <div class="kpi-value" data-count="${totalProspects}">0</div>
-        <div class="kpi-label">Total Prospects</div>
+        <div class="kpi-label">Total Prospects ${infoIcon('All leads across every pipeline stage: New, Contacted, Engaged, Replied, Booked, Bounced, and Unsubscribed.', true)}</div>
         <span class="kpi-sub">across all pipeline stages</span>
       </div>
     </div>
@@ -1747,20 +1754,20 @@ async function renderAnalytics() {
 
     <div class="insights-strip">
       <div class="insight-tile">
-        <div class="insight-val">${(emailsSent/30).toFixed(1)}</div>
-        <div class="insight-lbl">Avg emails / day</div>
+        <div class="insight-val">${(emailsLast30/30).toFixed(1)}</div>
+        <div class="insight-lbl">Avg emails / day ${infoIcon('Emails sent in the last 30 days divided by 30.')}</div>
       </div>
       <div class="insight-tile">
         <div class="insight-val">${activeDays}</div>
-        <div class="insight-lbl">Active send days</div>
+        <div class="insight-lbl">Active send days ${infoIcon('Number of days in the last 30 where at least one email was sent.')}</div>
       </div>
       <div class="insight-tile">
         <div class="insight-val">${bestDayName}</div>
-        <div class="insight-lbl">Top send day</div>
+        <div class="insight-lbl">Top send day ${infoIcon('Day of the week with the highest email volume across all recorded activity.')}</div>
       </div>
       <div class="insight-tile">
         <div class="insight-val">${contactedPct}%</div>
-        <div class="insight-lbl">Prospects contacted</div>
+        <div class="insight-lbl">Prospects contacted ${infoIcon('% of all prospects who have moved past "New" — includes Contacted, Engaged, Replied, and Booked stages.')}</div>
       </div>
     </div>
 
