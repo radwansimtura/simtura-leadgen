@@ -509,6 +509,7 @@ tr:hover td { background: #FAFCFF; }
   color: #fff; transition: transform .22s, box-shadow .22s; cursor: default;
 }
 .kpi-card:hover { transform: translateY(-4px); }
+.kpi-card:has(.info-icon:hover) { overflow: visible; }
 .kpi-card::after {
   content: ''; position: absolute;
   top: -40px; right: -40px;
