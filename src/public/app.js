@@ -1820,13 +1820,16 @@ async function renderAnalytics() {
     ${gaEmbed}`;
 
   animateCounters();
-  // Use setTimeout instead of rAF — gives the browser time to fully lay out
-  // the canvas containers before Chart.js measures their dimensions
   setTimeout(() => {
     try {
+      if (typeof Chart === 'undefined') {
+        document.getElementById('content').insertAdjacentHTML('afterbegin',
+          `<div style="background:#FEF3C7;border:1px solid #F59E0B;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#92400E;">
+            ⚠️ Chart.js failed to load — charts cannot render. Check /chart.umd.min.js in DevTools Network tab.
+          </div>`);
+        return;
+      }
       const testEl = document.getElementById('emailTimelineChart');
-      console.log('[Charts] Chart.js available:', typeof Chart);
-      console.log('[Charts] emailTimelineChart el:', testEl, 'parent h:', testEl?.parentElement?.offsetHeight);
       const outreachCharts = initAnalyticsCharts(days, emailsByDay, repliesByDay, pipelineKeys, pipelineValues, pipelineColors, stepCounts, pipeline, totalProspects, cumulativeEmails, dayOfWeekCounts, replyRateByStep);
       const ga4Charts      = initGA4Charts(ga4Data);
 
@@ -1880,11 +1883,13 @@ async function renderAnalytics() {
       }
 
       _analyticsCharts = [...outreachCharts, ...ga4Charts, ...purchaseCharts, ...signupsCharts];
-      console.log('[Charts] created:', _analyticsCharts.length, 'charts');
     } catch (e) {
-      console.error('[Charts] init error:', e);
+      document.getElementById('content').insertAdjacentHTML('afterbegin',
+        `<div style="background:#FEE2E2;border:1px solid #EF4444;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#991B1B;">
+          ⚠️ Chart init error: ${e.message}
+        </div>`);
     }
-  }, 120);
+  }, 400);
 }
 
 // ── View: Revenue ─────────────────────────────────────────────────────────────
