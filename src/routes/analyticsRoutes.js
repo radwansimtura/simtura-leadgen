@@ -277,6 +277,115 @@ router.delete('/signups/:id', async (req, res) => {
   }
 });
 
+// Scenario play analytics — queries the main Simtura.ai database
+router.get('/scenarios', async (req, res) => {
+  if (!process.env.SIMTURA_DATABASE_URL) return res.json({ configured: false });
+  try {
+    const pool = getSimturaPool();
+    const [totals, perScenario, daily, dropoff] = await Promise.all([
+      pool.query(`
+        SELECT
+          COUNT(*)                                                            AS total_attempts,
+          COUNT(completed_at)                                                 AS total_completed,
+          COUNT(DISTINCT user_id)                                             AS unique_users,
+          ROUND(AVG(CASE WHEN completed_at IS NOT NULL THEN score END))       AS avg_score,
+          COUNT(*) FILTER (WHERE ended_early = true)                          AS ended_early,
+          COUNT(*) FILTER (WHERE critical_failure = true)                     AS critical_failures,
+          COUNT(*) FILTER (WHERE started_at >= NOW() - INTERVAL '30 days')   AS last_30
+        FROM attempts
+      `),
+      pool.query(`
+        SELECT
+          s.id,
+          s.title,
+          s.category,
+          s.difficulty,
+          s.cert_level AS "certLevel",
+          COUNT(a.id)                                                                         AS attempts,
+          COUNT(a.completed_at)                                                               AS completed,
+          ROUND(AVG(CASE WHEN a.completed_at IS NOT NULL THEN a.score END))                  AS avg_score,
+          ROUND(AVG(
+            CASE WHEN a.total_steps > 0
+            THEN jsonb_array_length(a.responses)::float / a.total_steps * 100
+            END
+          ))                                                                                  AS avg_progress,
+          COUNT(*) FILTER (WHERE a.ended_early = true)                                       AS ended_early,
+          COUNT(*) FILTER (WHERE a.critical_failure = true)                                  AS critical_failures
+        FROM scenarios s
+        LEFT JOIN attempts a ON a.scenario_id = s.id
+        WHERE s.published = true
+        GROUP BY s.id, s.title, s.category, s.difficulty, s.cert_level
+        ORDER BY COUNT(a.id) DESC
+        LIMIT 15
+      `),
+      pool.query(`
+        SELECT DATE(started_at) AS day, COUNT(*) AS count
+        FROM attempts
+        WHERE started_at >= NOW() - INTERVAL '30 days'
+        GROUP BY DATE(started_at)
+        ORDER BY day
+      `),
+      pool.query(`
+        SELECT
+          CASE
+            WHEN total_steps = 0 THEN 'unknown'
+            WHEN jsonb_array_length(responses)::float / total_steps < 0.2  THEN '0–20%'
+            WHEN jsonb_array_length(responses)::float / total_steps < 0.4  THEN '20–40%'
+            WHEN jsonb_array_length(responses)::float / total_steps < 0.6  THEN '40–60%'
+            WHEN jsonb_array_length(responses)::float / total_steps < 0.8  THEN '60–80%'
+            ELSE '80–100%'
+          END AS bucket,
+          COUNT(*) AS count
+        FROM attempts
+        WHERE ended_early = true AND total_steps > 0
+        GROUP BY bucket
+        ORDER BY bucket
+      `),
+    ]);
+
+    const t = totals.rows[0];
+    const completionRate = t.total_attempts > 0
+      ? Math.round(t.total_completed / t.total_attempts * 100)
+      : 0;
+
+    res.json({
+      configured: true,
+      totals: {
+        totalAttempts:    parseInt(t.total_attempts),
+        totalCompleted:   parseInt(t.total_completed),
+        uniqueUsers:      parseInt(t.unique_users),
+        avgScore:         parseInt(t.avg_score) || 0,
+        endedEarly:       parseInt(t.ended_early),
+        criticalFailures: parseInt(t.critical_failures),
+        last30:           parseInt(t.last_30),
+        completionRate,
+      },
+      scenarios: perScenario.rows.map(r => ({
+        id:               r.id,
+        title:            r.title,
+        category:         r.category,
+        difficulty:       r.difficulty,
+        certLevel:        r.certLevel,
+        attempts:         parseInt(r.attempts),
+        completed:        parseInt(r.completed),
+        avgScore:         parseInt(r.avg_score) || 0,
+        avgProgress:      parseInt(r.avg_progress) || 0,
+        endedEarly:       parseInt(r.ended_early),
+        criticalFailures: parseInt(r.critical_failures),
+        completionRate:   r.attempts > 0 ? Math.round(r.completed / r.attempts * 100) : 0,
+      })),
+      daily: daily.rows.map(r => ({
+        day:   r.day instanceof Date ? r.day.toISOString().slice(0, 10) : String(r.day),
+        count: parseInt(r.count),
+      })),
+      dropoff: dropoff.rows.map(r => ({ bucket: r.bucket, count: parseInt(r.count) })),
+    });
+  } catch (err) {
+    console.error('[Scenarios]', err.message);
+    res.json({ configured: true, error: err.message });
+  }
+});
+
 // Looker Studio embed URL (kept as fallback)
 router.get('/ga', (req, res) => {
   const embedUrl = process.env.LOOKER_STUDIO_URL;

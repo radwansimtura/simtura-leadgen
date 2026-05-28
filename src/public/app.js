@@ -1524,19 +1524,122 @@ function buildSignupsSection(data) {
     </div>`;
 }
 
+function buildScenariosSection(data) {
+  if (!data?.configured) return '';
+  if (data.error) return `<div class="ga4-error-notice" style="margin-top:8px;">Scenario data error: ${data.error}</div>`;
+  const t = data.totals || {};
+  const scenarios = data.scenarios || [];
+
+  const diffColor = { beginner: '#10B981', intermediate: '#3B7FED', advanced: '#F59E0B', expert: '#EF4444' };
+
+  const scenarioRows = scenarios.map(s => {
+    const compPct = s.completionRate;
+    const barColor = compPct >= 70 ? '#10B981' : compPct >= 40 ? '#F59E0B' : '#EF4444';
+    const dc = diffColor[s.difficulty?.toLowerCase()] || '#94A3B8';
+    return `<tr>
+      <td style="padding:8px 10px;font-size:12.5px;font-weight:600;color:var(--text-1);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${s.title}">${s.title}</td>
+      <td style="padding:8px 10px;font-size:11px;"><span style="background:${dc}22;color:${dc};padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap;">${s.difficulty || '—'}</span></td>
+      <td style="padding:8px 10px;font-size:12.5px;color:var(--text-2);text-align:center;">${s.attempts}</td>
+      <td style="padding:8px 10px;text-align:center;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+            <div style="width:${compPct}%;height:100%;background:${barColor};border-radius:3px;"></div>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:${barColor};min-width:30px;">${compPct}%</span>
+        </div>
+      </td>
+      <td style="padding:8px 10px;font-size:12.5px;color:var(--text-2);text-align:center;">${s.avgScore > 0 ? s.avgScore + '%' : '—'}</td>
+      <td style="padding:8px 10px;font-size:12px;color:#EF4444;text-align:center;">${s.criticalFailures > 0 ? s.criticalFailures : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  const BUCKET_ORDER = ['0–20%','20–40%','40–60%','60–80%','80–100%'];
+  const dropoffMap = {};
+  (data.dropoff || []).forEach(r => { dropoffMap[r.bucket] = r.count; });
+
+  return `
+    <div class="section-header" style="margin-top:8px;">
+      <div class="section-title">Scenario Analytics</div>
+      <span style="font-size:11px;color:#94A3B8;font-weight:500;">simtura.ai training platform</span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">
+      <div class="chart-card" style="margin-bottom:0;text-align:center;">
+        <div style="font-size:28px;font-weight:800;color:var(--brand);letter-spacing:-1px;line-height:1;">${t.totalAttempts || 0}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:4px;font-weight:500;">Total Plays</div>
+        <div style="font-size:10.5px;color:var(--text-3);margin-top:2px;">${t.last30 || 0} in last 30 days</div>
+      </div>
+      <div class="chart-card" style="margin-bottom:0;text-align:center;">
+        <div style="font-size:28px;font-weight:800;color:#10B981;letter-spacing:-1px;line-height:1;">${t.completionRate || 0}%</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:4px;font-weight:500;">Completion Rate</div>
+        <div style="font-size:10.5px;color:var(--text-3);margin-top:2px;">${t.totalCompleted || 0} of ${t.totalAttempts || 0} finished</div>
+      </div>
+      <div class="chart-card" style="margin-bottom:0;text-align:center;">
+        <div style="font-size:28px;font-weight:800;color:#8B5CF6;letter-spacing:-1px;line-height:1;">${t.uniqueUsers || 0}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:4px;font-weight:500;">Unique Users</div>
+        <div style="font-size:10.5px;color:var(--text-3);margin-top:2px;">avg ${t.uniqueUsers > 0 ? (t.totalAttempts / t.uniqueUsers).toFixed(1) : '0'} plays/user</div>
+      </div>
+      <div class="chart-card" style="margin-bottom:0;text-align:center;">
+        <div style="font-size:28px;font-weight:800;color:#F59E0B;letter-spacing:-1px;line-height:1;">${t.avgScore || 0}%</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:4px;font-weight:500;">Avg Score</div>
+        <div style="font-size:10.5px;color:var(--text-3);margin-top:2px;">${t.criticalFailures || 0} critical failures</div>
+      </div>
+    </div>
+
+    <div class="charts-grid-2" style="margin-bottom:16px;">
+      <div class="chart-card">
+        <div class="chart-card-title">Daily Plays — Last 30 Days</div>
+        <div class="chart-card-sub">Scenario attempts started each day</div>
+        <div style="position:relative;height:180px;"><canvas id="scenarioDailyChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-title">Drop-off Point</div>
+        <div class="chart-card-sub">Where users quit incomplete scenarios</div>
+        <div style="position:relative;height:180px;"><canvas id="scenarioDropoffChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:16px;">
+      <div class="chart-card-title">Plays per Scenario</div>
+      <div class="chart-card-sub">Attempts on each published scenario</div>
+      <div style="position:relative;height:${Math.max(160, scenarios.length * 28)}px;"><canvas id="scenarioPlaysChart"></canvas></div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:24px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div class="chart-card-title" style="margin:0;">Per-Scenario Breakdown</div>
+        <span style="font-size:11px;color:var(--text-3);">${scenarios.length} published scenarios</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border);">
+            <th style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--text-3);text-align:left;">Scenario</th>
+            <th style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--text-3);text-align:left;">Level</th>
+            <th style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--text-3);text-align:center;">Plays</th>
+            <th style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--text-3);text-align:center;">Completion</th>
+            <th style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--text-3);text-align:center;">Avg Score</th>
+            <th style="padding:6px 10px;font-size:11px;font-weight:600;color:var(--text-3);text-align:center;">Crit. Fails</th>
+          </tr>
+        </thead>
+        <tbody>${scenarioRows || '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-3);font-size:13px;">No scenario plays yet</td></tr>'}</tbody>
+      </table>
+    </div>`;
+}
+
 async function renderAnalytics() {
   _analyticsCharts.forEach(c => c.destroy());
   _analyticsCharts = [];
 
   document.getElementById('content').innerHTML = `<div class="loading-state"><div class="spinner"></div> Loading…</div>`;
 
-  const [gaData, ga4Data, overview, activity, purchaseData, signupData] = await Promise.all([
+  const [gaData, ga4Data, overview, activity, purchaseData, signupData, scenarioData] = await Promise.all([
     fetch('/api/analytics/ga').then(r => r.json()).catch(() => ({ configured: false })),
     fetch('/api/analytics/ga4').then(r => r.json()).catch(() => ({ configured: false })),
     api('/overview').catch(() => ({})),
     api('/activity?limit=2000').catch(() => []),
     fetch('/api/analytics/purchases').then(r => r.json()).catch(() => ({ total: 0, byDay: {} })),
     fetch('/api/analytics/signups').then(r => r.json()).catch(() => ({ configured: false })),
+    fetch('/api/analytics/scenarios').then(r => r.json()).catch(() => ({ configured: false })),
   ]);
 
   const emailsSent     = activity.filter(a => a.action === 'email_sent').length;
@@ -1816,6 +1919,7 @@ async function renderAnalytics() {
 
     ${purchaseSection}
     ${buildSignupsSection(signupData)}
+    ${buildScenariosSection(scenarioData)}
     ${ga4Section}
     ${gaEmbed}`;
 
@@ -1882,7 +1986,75 @@ async function renderAnalytics() {
         }));
       }
 
-      _analyticsCharts = [...outreachCharts, ...ga4Charts, ...purchaseCharts, ...signupsCharts];
+      // Scenario charts
+      const scenarioCharts = [];
+      const BUCKET_ORDER = ['0–20%','20–40%','40–60%','60–80%','80–100%'];
+      const sdCtx = document.getElementById('scenarioDailyChart')?.getContext('2d');
+      if (sdCtx && scenarioData?.configured && !scenarioData?.error) {
+        const sDays = getLast30Days();
+        const sDailyMap = {};
+        (scenarioData.daily || []).forEach(r => { sDailyMap[r.day] = r.count; });
+        const gSd = sdCtx.createLinearGradient(0, 0, 0, 180);
+        gSd.addColorStop(0, 'rgba(139,92,246,.4)'); gSd.addColorStop(1, 'rgba(139,92,246,.02)');
+        scenarioCharts.push(new Chart(sdCtx, {
+          type: 'bar',
+          data: {
+            labels: sDays.map(d => { const dt = new Date(d+'T12:00:00'); return `${dt.getMonth()+1}/${dt.getDate()}`; }),
+            datasets: [{ data: sDays.map(d => sDailyMap[d] || 0), backgroundColor: gSd, borderRadius: 5, borderSkipped: false }],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(11,23,58,.88)', padding: 12, cornerRadius: 10, callbacks: { label: ctx => ` ${ctx.raw} play${ctx.raw !== 1 ? 's' : ''}` } } },
+            scales: {
+              x: { grid: { display: false }, border: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 10 }, color: '#CBD5E1' } },
+              y: { grid: { color: 'rgba(0,0,0,.04)' }, border: { display: false }, ticks: { font: { size: 10 }, color: '#CBD5E1', precision: 0 }, beginAtZero: true },
+            },
+          },
+        }));
+      }
+      const dropoffCtx = document.getElementById('scenarioDropoffChart')?.getContext('2d');
+      if (dropoffCtx && scenarioData?.configured && !scenarioData?.error) {
+        const dropoffMap = {};
+        (scenarioData.dropoff || []).forEach(r => { dropoffMap[r.bucket] = r.count; });
+        const dropoffColors = ['#EF4444','#F97316','#F59E0B','#3B7FED','#10B981'];
+        scenarioCharts.push(new Chart(dropoffCtx, {
+          type: 'bar',
+          data: {
+            labels: BUCKET_ORDER,
+            datasets: [{ data: BUCKET_ORDER.map(b => dropoffMap[b] || 0), backgroundColor: dropoffColors, borderRadius: 6, borderSkipped: false }],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(11,23,58,.88)', padding: 12, cornerRadius: 10, callbacks: { title: ctx => `Quit at ${ctx[0].label}`, label: ctx => ` ${ctx.raw} user${ctx.raw !== 1 ? 's' : ''}` } } },
+            scales: {
+              x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 11 }, color: '#CBD5E1' } },
+              y: { grid: { color: 'rgba(0,0,0,.04)' }, border: { display: false }, ticks: { font: { size: 10 }, color: '#CBD5E1', precision: 0 }, beginAtZero: true },
+            },
+          },
+        }));
+      }
+      const playsCtx = document.getElementById('scenarioPlaysChart')?.getContext('2d');
+      if (playsCtx && scenarioData?.configured && !scenarioData?.error && scenarioData.scenarios?.length) {
+        const sc = scenarioData.scenarios;
+        scenarioCharts.push(new Chart(playsCtx, {
+          type: 'bar',
+          data: {
+            labels: sc.map(s => s.title.length > 32 ? s.title.slice(0, 32) + '…' : s.title),
+            datasets: [{ data: sc.map(s => s.attempts), backgroundColor: '#3B7FED', borderRadius: 5, borderSkipped: false }],
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(11,23,58,.88)', padding: 12, cornerRadius: 10, callbacks: { label: ctx => ` ${ctx.raw} play${ctx.raw !== 1 ? 's' : ''}` } } },
+            scales: {
+              x: { grid: { color: 'rgba(0,0,0,.04)' }, border: { display: false }, ticks: { font: { size: 10 }, color: '#CBD5E1', precision: 0 }, beginAtZero: true },
+              y: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 11 }, color: '#94A3B8' } },
+            },
+          },
+        }));
+      }
+
+      _analyticsCharts = [...outreachCharts, ...ga4Charts, ...purchaseCharts, ...signupsCharts, ...scenarioCharts];
     } catch (e) {
       document.getElementById('content').insertAdjacentHTML('afterbegin',
         `<div style="background:#FEE2E2;border:1px solid #EF4444;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#991B1B;">
