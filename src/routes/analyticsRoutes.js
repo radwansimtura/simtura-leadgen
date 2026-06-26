@@ -184,15 +184,46 @@ router.get('/ga4', async (req, res) => {
   }
 });
 
-// Purchase attempt stats for analytics page
-router.get('/purchases', (req, res) => {
-  const all = db.getRecentActivity(5000).filter(a => a.action === 'purchase_attempt');
-  const byDay = {};
-  all.forEach(a => {
-    const day = new Date(a.created_at).toISOString().slice(0, 10);
-    byDay[day] = (byDay[day] || 0) + 1;
-  });
-  res.json({ total: all.length, byDay });
+// Real Stripe subscription data from Simtura DB
+router.get('/purchases', async (req, res) => {
+  if (!process.env.SIMTURA_DATABASE_URL) {
+    // fallback to click tracking if DB not configured
+    const all = db.getRecentActivity(5000).filter(a => a.action === 'purchase_attempt');
+    const byDay = {};
+    all.forEach(a => {
+      const day = new Date(a.created_at).toISOString().slice(0, 10);
+      byDay[day] = (byDay[day] || 0) + 1;
+    });
+    return res.json({ total: all.length, byDay, source: 'clicks' });
+  }
+  try {
+    const pool = getSimturaPool();
+    const [totals, daily] = await Promise.all([
+      pool.query(`
+        SELECT COUNT(*) AS total
+        FROM users
+        WHERE premium_source = 'stripe'
+          AND stripe_subscription_id IS NOT NULL
+      `),
+      pool.query(`
+        SELECT DATE(pro_since) AS day, COUNT(*) AS count
+        FROM users
+        WHERE premium_source = 'stripe'
+          AND pro_since >= NOW() - INTERVAL '30 days'
+        GROUP BY DATE(pro_since)
+        ORDER BY day
+      `),
+    ]);
+    const byDay = {};
+    daily.rows.forEach(r => {
+      const day = r.day instanceof Date ? r.day.toISOString().slice(0, 10) : String(r.day);
+      byDay[day] = parseInt(r.count);
+    });
+    res.json({ total: parseInt(totals.rows[0].total), byDay, source: 'stripe' });
+  } catch (err) {
+    console.error('[purchases]', err.message);
+    res.json({ total: 0, byDay: {}, source: 'error', error: err.message });
+  }
 });
 
 // Simtura.ai registered user signups — direct PostgreSQL query

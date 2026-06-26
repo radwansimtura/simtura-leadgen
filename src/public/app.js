@@ -1690,30 +1690,24 @@ async function renderAnalytics() {
   const purchaseSection  = `
     <div class="section-header" style="margin-top:8px;">
       <div class="section-title">Premium Conversion</div>
-      <span style="font-size:11px;color:#94A3B8;font-weight:500;">Payment system coming soon</span>
+      <span style="font-size:11px;color:#10B981;font-weight:600;display:flex;align-items:center;gap:5px;"><span class="live-dot"></span> Live · Stripe</span>
     </div>
     <div class="chart-card" style="margin-bottom:24px;">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;">
         <div>
-          <div class="chart-card-title">Premium Purchase Attempts</div>
-          <div class="chart-card-sub">People who clicked "Get Premium" on simtura.ai — last 30 days</div>
+          <div class="chart-card-title">Stripe Subscribers</div>
+          <div class="chart-card-sub">Confirmed paid Pro subscriptions — last 30 days</div>
         </div>
         <div style="text-align:right;">
           <div style="font-size:28px;font-weight:800;color:var(--brand);letter-spacing:-1px;line-height:1;">${purchaseTotal}</div>
-          <div style="font-size:11px;color:var(--text-3);margin-top:2px;">total attempts</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:2px;">paid subscribers</div>
         </div>
       </div>
       ${purchaseTotal === 0 ? `
         <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:120px;gap:10px;color:var(--text-3);">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".4"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
-          <div style="font-size:13px;font-weight:500;opacity:.6;">Waiting for first purchase click</div>
-          <div style="font-size:11.5px;opacity:.45;max-width:360px;text-align:center;">Add the tracking pixel to your simtura.ai pricing page — data will appear here instantly</div>
+          <div style="font-size:13px;font-weight:500;opacity:.6;">No Stripe subscribers yet</div>
         </div>` : `<div style="position:relative;height:160px;"><canvas id="purchaseChart"></canvas></div>`}
-      <div style="margin-top:14px;padding:12px 14px;background:var(--surface-alt);border-radius:9px;border:1px dashed rgba(59,127,237,.3);">
-        <div style="font-size:11.5px;font-weight:700;color:var(--text-2);margin-bottom:5px;">Add tracking to simtura.ai</div>
-        <div style="font-size:11px;color:var(--text-3);line-height:1.6;">Drop this on your "Get Premium" button — no backend needed:</div>
-        <code style="display:block;margin-top:8px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:7px;font-size:11px;color:#3B7FED;word-break:break-all;">fetch('https://simtura-leadgen.onrender.com/track/purchase-attempt', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({source:'pricing-page', plan:'premium'}) })</code>
-      </div>
     </div>`;
 
   // Build the GA4 custom-chart section (shown if API is connected)
