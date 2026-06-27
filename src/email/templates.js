@@ -1,127 +1,92 @@
-const SIMTURA_CONTEXT = `
-Simtura.ai creates hyperrealistic AI video simulations for EMS training.
-
-What makes it different:
-- AI-generated video cases that progress in real time — vitals change, the patient deteriorates or improves based on student decisions
-- Students feel like they're actually on the call, not watching a slideshow
-- Immersive, scenario-based learning built on the science of deliberate practice
-- NREMT-aligned case progressions that prepare students for what they'll actually face
-- The future of EMS pedagogy — immersion over memorization
-
-Website: https://simtura.ai
-`.trim();
-
 const STEP_PROMPTS = {
   1: (prospect) => `
-You are writing a cold outreach email on behalf of Yousef Radwan at Simtura.ai.
+Write a cold email from Yousef Radwan at Simtura.ai to ${prospect.contact_name || 'there'} at ${prospect.organization}.
 
-Prospect:
-- Organization: ${prospect.organization}
-- Contact name: ${prospect.contact_name || 'there'}
-- Title: ${prospect.contact_title || ''}
-- Type: ${prospect.type === 'agency' ? 'EMS Agency' : 'EMS Teaching Program'}
+Simtura.ai is a training platform for EMS students — video scenarios where the patient actually deteriorates or improves based on what the student does. It's free to try at https://simtura.ai.
 
-${SIMTURA_CONTEXT}
+Write a 3-sentence email. Sentence 1: one specific, honest observation about how hard it is to prepare EMS students for the moment a call goes wrong — not generic, not flattering, just real. Sentence 2: mention Simtura lets students work through cases where the patient actually changes based on their decisions — not a slideshow, the patient is breathing and deteriorating in real time. Sentence 3: "Worth a look — https://simtura.ai"
+
+Sign off: Yousef
 
 Rules:
-- Under 100 words in the body
-- Open with one honest observation about how EMS training typically feels disconnected from real calls — the gap between classroom and scene
-- Introduce Simtura as hyperrealistic AI video simulations where cases actually progress — the patient gets worse, vitals shift, the scene evolves
-- One line: this is what immersive EMS education looks like
-- End with: "Worth seeing — https://simtura.ai"
-- No buzzwords, no fluff. Write like a real person.
-- Sign off: Yousef Radwan, Simtura.ai
+- Sound like a real person, not a company
+- No exclamation points
+- No "I hope this finds you well" or any opener like that
+- No buzzwords: no "leverage", "revolutionize", "cutting-edge", "game-changer"
+- Do not mention AI
+- Under 80 words total
 
 Return ONLY valid JSON, no markdown:
 {"subject": "...", "body": "..."}
 `,
 
   2: (prospect) => `
-You are writing follow-up email #2 for Simtura.ai. The first email introduced the platform.
+Write cold follow-up email #2 from Yousef Radwan at Simtura.ai to ${prospect.contact_name || 'there'} at ${prospect.organization}. They didn't respond to the first email.
 
-Prospect:
-- Organization: ${prospect.organization}
-- Contact name: ${prospect.contact_name || 'there'}
-- Title: ${prospect.contact_title || ''}
-- Type: ${prospect.type === 'agency' ? 'EMS Agency' : 'EMS Teaching Program'}
+Don't reference the first email. Write something completely fresh.
 
-${SIMTURA_CONTEXT}
+Focus on one thing: most EMS training gives students a scenario that stays the same no matter what they do. Simtura cases actually progress — the patient gets worse if you miss something, stabilizes if you get it right. That's the difference.
+
+End with a soft CTA: "Free to try — https://simtura.ai"
+
+Sign off: Yousef
 
 Rules:
-- Under 90 words
-- Don't reference the previous email
-- Make it about the experience: when a student watches a Simtura case, the patient is breathing, struggling, deteriorating — it feels like a real call because the AI video progresses based on what should happen next
-- Contrast this with static mannequins or slideshows
-- One line CTA: "Would love to show you a case — https://simtura.ai"
-- Sign off: Yousef Radwan, Simtura.ai
+- Under 75 words
+- No opener, just get into it
+- Sound like a person who actually cares about EMS education, not a salesperson
+- No exclamation points, no buzzwords, no mention of AI
 
 Return ONLY valid JSON, no markdown:
 {"subject": "...", "body": "..."}
 `,
 
   3: (prospect) => `
-You are writing follow-up email #3 for Simtura.ai. Two emails have gone out, no reply.
+Write cold follow-up email #3 from Yousef Radwan at Simtura.ai to ${prospect.contact_name || 'there'} at ${prospect.organization}. Two emails sent, no reply.
 
-Prospect:
-- Organization: ${prospect.organization}
-- Contact name: ${prospect.contact_name || 'there'}
-- Title: ${prospect.contact_title || ''}
-- Type: ${prospect.type === 'agency' ? 'EMS Agency' : 'EMS Teaching Program'}
+Ask a genuine question about their program — something like how they currently handle scenario training, or what their students struggle with most on the NREMT. Make it sound like you're actually curious, not fishing for an opening.
 
-${SIMTURA_CONTEXT}
+One sentence mentioning Simtura exists is fine but not required. Don't pitch.
+
+Sign off: Yousef
 
 Rules:
-- Under 90 words
-- Zoom in on pedagogy: immersion is how humans actually learn — flight simulators, surgical simulators, now EMS simulators. The research on deliberate practice in high-stakes fields points to this
-- Simtura brings that same level of immersion to EMS — hyperrealistic video progressions that make the brain treat it like a real call
-- One concrete outcome: students who train this way make better decisions under pressure
-- CTA: https://simtura.ai
-- Sign off: Yousef Radwan, Simtura.ai
+- Under 65 words
+- One question max
+- Sound genuinely curious, not strategic
+- No exclamation points, no buzzwords
 
 Return ONLY valid JSON, no markdown:
 {"subject": "...", "body": "..."}
 `,
 
   4: (prospect) => `
-You are writing follow-up email #4 for Simtura.ai. Three emails, no reply.
+Write cold follow-up email #4 from Yousef Radwan at Simtura.ai to ${prospect.contact_name || 'there'} at ${prospect.organization}. Three emails, no reply.
 
-Prospect:
-- Organization: ${prospect.organization}
-- Contact name: ${prospect.contact_name || 'there'}
-- Title: ${prospect.contact_title || ''}
-- Type: ${prospect.type === 'agency' ? 'EMS Agency' : 'EMS Teaching Program'}
+Keep it very short. Something like: you've been building this for EMS programs, you think it'd be useful for theirs specifically, and you're happy to show them a case live on a 15-minute call if they ever want. No pressure.
 
-${SIMTURA_CONTEXT}
+Sign off: Yousef
 
 Rules:
-- Under 70 words. Make it feel human.
-- Ask one genuine question: something like "What does a typical training scenario look like for your students right now?" or "Do your students ever get to practice a call that goes sideways in real time?"
-- Don't pitch hard. Just be curious.
-- One passing mention of Simtura is fine but not required
-- Sign off: Yousef Radwan, Simtura.ai
+- Under 55 words
+- Very low pressure, very human
+- No pitch language at all
 
 Return ONLY valid JSON, no markdown:
 {"subject": "...", "body": "..."}
 `,
 
   5: (prospect) => `
-You are writing the final email (#5) for Simtura.ai. This is the last in the sequence.
+Write the final email (#5) from Yousef Radwan at Simtura.ai to ${prospect.contact_name || 'there'} at ${prospect.organization}. Last in the sequence.
 
-Prospect:
-- Organization: ${prospect.organization}
-- Contact name: ${prospect.contact_name || 'there'}
-- Title: ${prospect.contact_title || ''}
-- Type: ${prospect.type === 'agency' ? 'EMS Agency' : 'EMS Teaching Program'}
+Tell them this is the last you'll reach out. Leave one honest thought — not a pitch, just something real about why you think simulation matters for EMS training and why you built this. Leave the door open warmly. Link: https://simtura.ai
 
-${SIMTURA_CONTEXT}
+Sign off: Yousef
 
 Rules:
-- Under 70 words
-- Be genuine: this is the last email, you won't keep following up
-- Leave one lasting thought — something like: the gap between how EMS providers train and how they actually perform on scene is closing, and immersive simulation is how
-- Leave the door open warmly
-- Link: https://simtura.ai
-- Sign off: Yousef Radwan, Simtura.ai
+- Under 65 words
+- Genuine, not dramatic
+- No pressure, no pitch
 
 Return ONLY valid JSON, no markdown:
 {"subject": "...", "body": "..."}
