@@ -79,6 +79,18 @@ router.delete('/prospects/bulk/non-new', (req, res) => {
   res.json({ ok: true, deleted: result.changes });
 });
 
+// Reset ALL prospects back to new so they restart the sequence from email 1
+router.post('/prospects/bulk/reset', (req, res) => {
+  const result = db.db.prepare(`
+    UPDATE prospects
+    SET status = 'new',
+        sequence_step = 0,
+        last_contacted = NULL,
+        next_send_date = NULL
+  `).run();
+  res.json({ ok: true, reset: result.changes });
+});
+
 router.delete('/prospects/:id', (req, res) => {
   const p = db.getProspectById(req.params.id);
   if (!p) return res.status(404).json({ error: 'Not found' });
