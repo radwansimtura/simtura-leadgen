@@ -56,38 +56,10 @@ function wrapHtml(plainTextBody, prospectId) {
 
 // ── AI email generation ───────────────────────────────────────────────────────
 
-async function generateEmail(prospect, step, retries = 3) {
-  const promptFn = STEP_PROMPTS[step];
-  if (!promptFn) throw new Error(`No template for step ${step}`);
-
-  let lastErr;
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const message = await anthropic.messages.create({
-        model: MODEL,
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: promptFn(prospect) }],
-      });
-
-      const raw     = message.content[0].text.trim();
-      const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
-      try {
-        return JSON.parse(cleaned);
-      } catch {
-        const match = cleaned.match(/\{[\s\S]*\}/);
-        if (match) return JSON.parse(match[0]);
-        throw new Error(`Claude returned non-JSON for step ${step}: ${raw.slice(0, 200)}`);
-      }
-    } catch (err) {
-      lastErr = err;
-      if (attempt < retries && (err.status === 529 || err.status === 429 || String(err.message).includes('overloaded'))) {
-        await new Promise(r => setTimeout(r, attempt * 2000));
-      } else {
-        throw err;
-      }
-    }
-  }
-  throw lastErr;
+async function generateEmail(prospect, step) {
+  const templateFn = STEP_PROMPTS[step];
+  if (!templateFn) throw new Error(`No template for step ${step}`);
+  return templateFn(prospect);
 }
 
 // ── Generate preview of next email without sending ───────────────────────────
@@ -97,7 +69,7 @@ async function previewNextEmail(prospectId) {
   if (!prospect) throw new Error('Prospect not found');
 
   const nextStep = prospect.sequence_step + 1;
-  if (nextStep > 5) return null;
+  if (nextStep > 3) return null;
 
   const { subject, body } = await generateEmail(prospect, nextStep);
   return { step: nextStep, subject, body };
@@ -115,7 +87,7 @@ function addDays(dateStr, days) {
 
 async function sendSequenceEmail(prospect) {
   const nextStep = prospect.sequence_step + 1;
-  if (nextStep > 5) return { skipped: true, reason: 'sequence complete' };
+  if (nextStep > 3) return { skipped: true, reason: 'sequence complete' };
 
   const { subject, body } = await generateEmail(prospect, nextStep);
   const htmlBody = wrapHtml(body, prospect.id);

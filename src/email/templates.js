@@ -1,104 +1,69 @@
+// Static email templates — returns {subject, body} directly, no Claude generation needed.
+
 const STEP_PROMPTS = {
-  1: (prospect) => `
-Write a cold email from Yousef Radwan at Simtura.ai to ${prospect.contact_name || 'there'} at ${prospect.organization}.
+  1: (prospect) => {
+    const name = prospect.contact_name || prospect.organization;
+    return {
+      subject: `Potential Collaboration!`,
+      body: `Hi ${name},
 
-Simtura.ai is a training platform for EMS students — video scenarios where the patient actually deteriorates or improves based on what the student does. It's free to try at https://simtura.ai.
+My name is Yousef, a neuroscience student at UCLA and a certified EMT. Over the last few months a friend and I built a website/program to help train both pre-licensure EMS students and current providers! It works in providing videos of a scenario, then users are prompted with certain decision points where they then dictate their action (or you can choose MCQ). Our grading system gives users a score based on their answer and moves them on to the next intervention. The premise is that learners think through the call in real time (we even built a mock NREMT psychomotor exam you can check out!).
 
-Write a 3-sentence email. Sentence 1: one specific, honest observation about how hard it is to prepare EMS students for the moment a call goes wrong — not generic, not flattering, just real. Sentence 2: mention Simtura lets students work through cases where the patient actually changes based on their decisions — not a slideshow, the patient is breathing and deteriorating in real time. Sentence 3: "Worth a look — https://simtura.ai"
+I'm reaching out because I found that your program/agency has the kind of providers we built this for, and I'd love to get it in front of you guys — as an extra resource or, if it's a fit, part of a curriculum.
 
-Sign off: Yousef
+Easiest thing is to just play a scenario yourself: simtura.ai
 
-Rules:
-- Sound like a real person, not a company
-- No exclamation points
-- No "I hope this finds you well" or any opener like that
-- No buzzwords: no "leverage", "revolutionize", "cutting-edge", "game-changer"
-- Do not mention AI
-- Under 80 words total
+If it clicks, I'd love to grab 15 minutes to show you the rest. Even if you absolutely hate it — I'd love to talk!
 
-Return ONLY valid JSON, no markdown:
-{"subject": "...", "body": "..."}
-`,
+Best,
+Yousef
+My number, call me at any time: 603-573-8480`,
+    };
+  },
 
-  2: (prospect) => `
-Write cold follow-up email #2 from Yousef Radwan at Simtura.ai to ${prospect.contact_name || 'there'} at ${prospect.organization}. They didn't respond to the first email.
+  2: (prospect) => {
+    const name = prospect.contact_name || prospect.organization;
+    return {
+      subject: `Re: Potential Collaboration!`,
+      body: `Hi ${name},
 
-Don't reference the first email. Write something completely fresh.
+Just floating this back to the top of your inbox in case it got buried — totally get how it goes.
 
-Focus on one thing: most EMS training gives students a scenario that stays the same no matter what they do. Simtura cases actually progress — the patient gets worse if you miss something, stabilizes if you get it right. That's the difference.
+Quick recap: I'm Yousef, the UCLA neuro student / EMT who built the EMS training sim. The fastest way to get a feel for it is to play a single scenario yourself (a couple minutes, no setup): simtura.ai
 
-End with a soft CTA: "Free to try — https://simtura.ai"
+If it's not a fit, no hard feelings at all — even a one-line "not for us" reply helps me. And if you're even a little curious, I'm happy to walk you through it in 15 minutes whenever works.
 
-Sign off: Yousef
+Best,
+Yousef
+603-573-8480 — call or text anytime`,
+    };
+  },
 
-Rules:
-- Under 75 words
-- No opener, just get into it
-- Sound like a person who actually cares about EMS education, not a salesperson
-- No exclamation points, no buzzwords, no mention of AI
+  3: (prospect) => {
+    const name = prospect.contact_name || prospect.organization;
+    return {
+      subject: `Re: Potential Collaboration!`,
+      body: `Hi ${name},
 
-Return ONLY valid JSON, no markdown:
-{"subject": "...", "body": "..."}
-`,
+Last nudge from me on this, then I'll get out of your inbox — promise.
 
-  3: (prospect) => `
-Write cold follow-up email #3 from Yousef Radwan at Simtura.ai to ${prospect.contact_name || 'there'} at ${prospect.organization}. Two emails sent, no reply.
+I still think Simtura could be a genuinely useful resource for your students/providers, but I know timing is everything and a cold email is easy to lose. If now isn't right, totally fair — just let me know and I'll check back down the road instead.
 
-Ask a genuine question about their program — something like how they currently handle scenario training, or what their students struggle with most on the NREMT. Make it sound like you're actually curious, not fishing for an opening.
+If you'd rather skip the back-and-forth, the scenario's right here to try: simtura.ai — or just text me and I'll send a 2-minute clip of it in action.
 
-One sentence mentioning Simtura exists is fine but not required. Don't pitch.
+Either way, thanks for the time, and good luck with everything this season.
 
-Sign off: Yousef
-
-Rules:
-- Under 65 words
-- One question max
-- Sound genuinely curious, not strategic
-- No exclamation points, no buzzwords
-
-Return ONLY valid JSON, no markdown:
-{"subject": "...", "body": "..."}
-`,
-
-  4: (prospect) => `
-Write cold follow-up email #4 from Yousef Radwan at Simtura.ai to ${prospect.contact_name || 'there'} at ${prospect.organization}. Three emails, no reply.
-
-Keep it very short. Something like: you've been building this for EMS programs, you think it'd be useful for theirs specifically, and you're happy to show them a case live on a 15-minute call if they ever want. No pressure.
-
-Sign off: Yousef
-
-Rules:
-- Under 55 words
-- Very low pressure, very human
-- No pitch language at all
-
-Return ONLY valid JSON, no markdown:
-{"subject": "...", "body": "..."}
-`,
-
-  5: (prospect) => `
-Write the final email (#5) from Yousef Radwan at Simtura.ai to ${prospect.contact_name || 'there'} at ${prospect.organization}. Last in the sequence.
-
-Tell them this is the last you'll reach out. Leave one honest thought — not a pitch, just something real about why you think simulation matters for EMS training and why you built this. Leave the door open warmly. Link: https://simtura.ai
-
-Sign off: Yousef
-
-Rules:
-- Under 65 words
-- Genuine, not dramatic
-- No pressure, no pitch
-
-Return ONLY valid JSON, no markdown:
-{"subject": "...", "body": "..."}
-`,
+Best,
+Yousef
+603-573-8480 — call or text anytime`,
+    };
+  },
 };
 
 // Days to wait after sending step N before sending step N+1
 const STEP_INTERVALS = {
   1: 3,
-  2: 4,
-  3: 6,
-  4: 7,
+  2: 5,
 };
 
 module.exports = { STEP_PROMPTS, STEP_INTERVALS };
