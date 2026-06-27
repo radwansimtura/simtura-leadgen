@@ -62,8 +62,8 @@ Yousef
 
 // Days to wait after sending step N before sending step N+1
 const STEP_INTERVALS = {
-  1: 3,
-  2: 5,
+  1: 5,
+  2: 105, // 5 + 105 = 110 days after email 1
 };
 
 module.exports = { STEP_PROMPTS, STEP_INTERVALS };
