@@ -1886,28 +1886,16 @@ async function renderAnalytics() {
         <div style="position:relative;height:200px;"><canvas id="pipelineDonutChart"></canvas></div>
       </div>
     </div>
-    <div class="charts-grid-2" style="margin-bottom:16px;">
+    <div class="charts-grid-2" style="margin-bottom:24px;">
       <div class="chart-card">
         <div class="chart-card-title">Conversion Funnel</div>
         <div class="chart-card-sub">Prospects at each pipeline stage</div>
         <div style="position:relative;height:180px;"><canvas id="funnelChart"></canvas></div>
       </div>
       <div class="chart-card">
-        <div class="chart-card-title">Sequence Step Breakdown</div>
-        <div class="chart-card-sub">Emails sent per sequence step</div>
-        <div style="position:relative;height:180px;"><canvas id="stepChart"></canvas></div>
-      </div>
-    </div>
-    <div class="charts-grid-2" style="margin-bottom:24px;">
-      <div class="chart-card">
         <div class="chart-card-title">Best Days to Send</div>
         <div class="chart-card-sub">Email volume by day of week</div>
         <div style="position:relative;height:180px;"><canvas id="dowChart"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <div class="chart-card-title">Reply Rate by Sequence Step</div>
-        <div class="chart-card-sub">Emails sent vs. reply rate per step</div>
-        <div style="position:relative;height:180px;"><canvas id="replyRateStepChart"></canvas></div>
       </div>
     </div>
 

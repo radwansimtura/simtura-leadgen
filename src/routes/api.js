@@ -80,6 +80,12 @@ router.delete('/prospects/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// Delete all prospects that are NOT status='new'
+router.delete('/prospects/bulk/non-new', (req, res) => {
+  const result = db.db.prepare("DELETE FROM prospects WHERE status != 'new'").run();
+  res.json({ ok: true, deleted: result.changes });
+});
+
 // Bulk import via JSON array (parsed from CSV on frontend)
 router.post('/prospects/bulk', (req, res) => {
   const { prospects } = req.body;
