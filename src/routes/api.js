@@ -73,17 +73,17 @@ router.put('/prospects/:id', (req, res) => {
   res.json(db.getProspectById(req.params.id));
 });
 
+// Delete all prospects that are NOT status='new' — must be before /:id route
+router.delete('/prospects/bulk/non-new', (req, res) => {
+  const result = db.db.prepare("DELETE FROM prospects WHERE status != 'new'").run();
+  res.json({ ok: true, deleted: result.changes });
+});
+
 router.delete('/prospects/:id', (req, res) => {
   const p = db.getProspectById(req.params.id);
   if (!p) return res.status(404).json({ error: 'Not found' });
   db.deleteProspect(req.params.id);
   res.json({ ok: true });
-});
-
-// Delete all prospects that are NOT status='new'
-router.delete('/prospects/bulk/non-new', (req, res) => {
-  const result = db.db.prepare("DELETE FROM prospects WHERE status != 'new'").run();
-  res.json({ ok: true, deleted: result.changes });
 });
 
 // Bulk import via JSON array (parsed from CSV on frontend)
