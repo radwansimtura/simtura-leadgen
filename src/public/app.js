@@ -1524,6 +1524,136 @@ function buildSignupsSection(data) {
     </div>`;
 }
 
+let _orgsData = [];
+
+function buildOrgsSection(data) {
+  if (!data?.configured) return '';
+  if (data.error) return `<div class="ga4-error-notice" style="margin-top:8px;">Org data error: ${data.error}</div>`;
+  _orgsData = data.orgs || [];
+  if (_orgsData.length === 0) return '';
+
+  const thStyle = 'text-align:left;padding:6px 10px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.4px;';
+
+  const rows = _orgsData.map((o, i) => {
+    const free = o.pricePerSeatCents === 0;
+    const priceCell = free
+      ? `<span style="color:#10B981;font-weight:700;font-size:11px;">Free</span>`
+      : `$${(o.pricePerSeatCents / 100).toFixed(2)}/seat/mo`;
+    const expired = o.expiresAt && new Date(o.expiresAt) < new Date();
+    const expiryColor = expired ? '#EF4444' : 'var(--text-2)';
+    const statusColor = o.status === 'active' ? '#10B981' : '#F59E0B';
+    return `<tr onclick="showOrgModal('${o.id}')" style="border-bottom:1px solid rgba(226,232,240,.5);cursor:pointer;"
+        onmouseover="this.style.background='rgba(59,127,237,.04)'" onmouseout="this.style.background=''">
+      <td style="padding:7px 10px;font-size:12px;color:var(--text-2);">${i + 1}</td>
+      <td style="padding:7px 10px;font-size:12px;color:var(--text);font-weight:500;">${o.name}</td>
+      <td style="padding:7px 10px;font-size:12px;color:var(--text-2);">${o.contactEmail}</td>
+      <td style="padding:7px 10px;font-size:12px;text-align:center;">${o.redeemedCount} / ${o.seats}</td>
+      <td style="padding:7px 10px;font-size:12px;">${priceCell}</td>
+      <td style="padding:7px 10px;font-size:12px;">${o.courseMonths} mo</td>
+      <td style="padding:7px 10px;font-size:12px;color:${expiryColor};">${o.expiresAt ? fmtDate(o.expiresAt) : '—'}</td>
+      <td style="padding:7px 10px;"><span style="font-size:11px;font-weight:700;color:${statusColor};">${o.status}</span></td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <div class="section-header" style="margin-top:8px;">
+      <div class="section-title">Organization Accounts</div>
+      <span style="font-size:11px;color:#3B7FED;font-weight:600;display:flex;align-items:center;gap:5px;">
+        <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#3B7FED;"></span>
+        ${_orgsData.length} org${_orgsData.length !== 1 ? 's' : ''}
+      </span>
+    </div>
+    <div class="chart-card" style="margin-bottom:24px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div>
+          <div class="chart-card-title">Organization Subscriptions</div>
+          <div class="chart-card-sub">Click any row to view full details</div>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;min-width:620px;">
+          <thead>
+            <tr style="border-bottom:1px solid rgba(226,232,240,.8);">
+              <th style="${thStyle}">#</th>
+              <th style="${thStyle}">Org Name</th>
+              <th style="${thStyle}">Contact</th>
+              <th style="${thStyle};text-align:center;">Seats</th>
+              <th style="${thStyle}">Price</th>
+              <th style="${thStyle}">Duration</th>
+              <th style="${thStyle}">Expires</th>
+              <th style="${thStyle}">Status</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function showOrgModal(orgId) {
+  const o = _orgsData.find(x => x.id === orgId);
+  if (!o) return;
+  const priceLabel = o.pricePerSeatCents > 0
+    ? `$${(o.pricePerSeatCents / 100).toFixed(2)} / seat / mo`
+    : 'Free';
+  const totalLabel = o.totalCents > 0
+    ? `$${(o.totalCents / 100).toFixed(0)}`
+    : '$0 (free)';
+  const expired = o.expiresAt && new Date(o.expiresAt) < new Date();
+  const expColor = expired ? '#EF4444' : 'var(--text)';
+  const bg = (c) => `background:rgba(${c},.07);border-radius:10px;padding:14px;`;
+  showModal(`
+    <div style="padding:4px 0 0;min-width:340px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+        <h2 style="margin:0;font-size:17px;font-weight:700;color:var(--text);">${o.name}</h2>
+        <button onclick="closeModal()" style="background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:var(--text-3);">&times;</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div style="background:rgba(0,0,0,.04);border-radius:10px;padding:12px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:5px;">Contact</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);">${o.contactName}</div>
+          <div style="font-size:11px;color:var(--text-2);margin-top:2px;">${o.contactEmail}</div>
+        </div>
+        <div style="background:rgba(0,0,0,.04);border-radius:10px;padding:12px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:5px;">Type / Status</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);">${o.orgType}</div>
+          <div style="font-size:11px;font-weight:700;color:${o.status === 'active' ? '#10B981' : '#F59E0B'};margin-top:2px;">${o.status}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div style="${bg('59,127,237')}text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:#3B7FED;">${o.redeemedCount} / ${o.seats}</div>
+          <div style="font-size:10px;color:var(--text-3);margin-top:3px;">Seats used</div>
+        </div>
+        <div style="${bg('139,92,246')}text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:#8B5CF6;">${o.courseMonths} mo</div>
+          <div style="font-size:10px;color:var(--text-3);margin-top:3px;">Duration</div>
+        </div>
+        <div style="${bg('16,185,129')}text-align:center;">
+          <div style="font-size:18px;font-weight:800;color:#10B981;">${totalLabel}</div>
+          <div style="font-size:10px;color:var(--text-3);margin-top:3px;">Total paid</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:${o.notes ? '12px' : '4px'};">
+        <div style="background:rgba(0,0,0,.04);border-radius:10px;padding:12px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:4px;">Per seat</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);">${priceLabel}</div>
+        </div>
+        <div style="background:rgba(0,0,0,.04);border-radius:10px;padding:12px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:4px;">Started</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);">${o.paidAt ? fmtDate(o.paidAt) : 'Pending'}</div>
+        </div>
+        <div style="background:${expired ? 'rgba(239,68,68,.07)' : 'rgba(0,0,0,.04)'};border-radius:10px;padding:12px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:4px;">Expires</div>
+          <div style="font-size:13px;font-weight:600;color:${expColor};">${o.expiresAt ? fmtDate(o.expiresAt) : '—'}</div>
+        </div>
+      </div>
+      ${o.notes ? `<div style="background:rgba(245,158,11,.08);border-radius:10px;padding:11px;font-size:12px;color:var(--text-2);border:1px solid rgba(245,158,11,.2);">
+        <span style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#F59E0B;font-weight:700;">Notes: </span>${o.notes}
+      </div>` : ''}
+    </div>`);
+}
+
 function buildScenariosSection(data) {
   if (!data?.configured) return '';
   if (data.error) return `<div class="ga4-error-notice" style="margin-top:8px;">Scenario data error: ${data.error}</div>`;
@@ -1632,7 +1762,7 @@ async function renderAnalytics() {
 
   document.getElementById('content').innerHTML = `<div class="loading-state"><div class="spinner"></div> Loading…</div>`;
 
-  const [gaData, ga4Data, overview, activity, purchaseData, signupData, scenarioData] = await Promise.all([
+  const [gaData, ga4Data, overview, activity, purchaseData, signupData, scenarioData, orgsData] = await Promise.all([
     fetch('/api/analytics/ga').then(r => r.json()).catch(() => ({ configured: false })),
     fetch('/api/analytics/ga4').then(r => r.json()).catch(() => ({ configured: false })),
     api('/overview').catch(() => ({})),
@@ -1640,6 +1770,7 @@ async function renderAnalytics() {
     fetch('/api/analytics/purchases').then(r => r.json()).catch(() => ({ total: 0, byDay: {} })),
     fetch('/api/analytics/signups').then(r => r.json()).catch(() => ({ configured: false })),
     fetch('/api/analytics/scenarios').then(r => r.json()).catch(() => ({ configured: false })),
+    fetch('/api/analytics/orgs').then(r => r.json()).catch(() => ({ configured: false })),
   ]);
 
   const emailsSent     = activity.filter(a => a.action === 'email_sent').length;
@@ -1901,6 +2032,7 @@ async function renderAnalytics() {
 
     ${purchaseSection}
     ${buildSignupsSection(signupData)}
+    ${buildOrgsSection(orgsData)}
     ${buildScenariosSection(scenarioData)}
     ${ga4Section}
     ${gaEmbed}`;

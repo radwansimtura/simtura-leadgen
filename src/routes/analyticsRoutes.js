@@ -417,6 +417,49 @@ router.get('/scenarios', async (req, res) => {
   }
 });
 
+// Organization accounts — seats, pricing, duration, expiry
+router.get('/orgs', async (req, res) => {
+  if (!process.env.SIMTURA_DATABASE_URL) return res.json({ configured: false });
+  try {
+    const pool = getSimturaPool();
+    const result = await pool.query(`
+      SELECT
+        o.id,
+        o.name,
+        o.contact_name       AS "contactName",
+        o.contact_email      AS "contactEmail",
+        o.org_type           AS "orgType",
+        o.seats,
+        o.price_per_seat_cents AS "pricePerSeatCents",
+        o.course_months      AS "courseMonths",
+        o.total_cents        AS "totalCents",
+        o.status,
+        o.created_at         AS "createdAt",
+        o.paid_at            AS "paidAt",
+        o.notes,
+        COUNT(oc.id) FILTER (WHERE oc.redeemed_at IS NOT NULL) AS "redeemedCount"
+      FROM organizations o
+      LEFT JOIN organization_codes oc ON oc.organization_id = o.id
+      WHERE o.status != 'deleted'
+      GROUP BY o.id
+      ORDER BY o.created_at DESC
+    `);
+    const orgs = result.rows.map(r => {
+      let expiresAt = null;
+      if (r.paidAt && r.courseMonths) {
+        const d = new Date(r.paidAt);
+        d.setMonth(d.getMonth() + parseInt(r.courseMonths));
+        expiresAt = d.toISOString();
+      }
+      return { ...r, redeemedCount: parseInt(r.redeemedCount) || 0, expiresAt };
+    });
+    res.json({ configured: true, orgs });
+  } catch (err) {
+    console.error('[Orgs]', err.message);
+    res.json({ configured: true, error: err.message });
+  }
+});
+
 // Looker Studio embed URL (kept as fallback)
 router.get('/ga', (req, res) => {
   const embedUrl = process.env.LOOKER_STUDIO_URL;
