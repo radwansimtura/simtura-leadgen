@@ -1438,7 +1438,16 @@ function buildSignupsSection(data) {
   const rows = users.slice(0, 100).map((u, i) => {
     const tierColor = u.tier === 'pro' ? '#10B981' : '#94A3B8';
     const tierLabel = u.tier === 'pro' ? 'Pro' : 'Free';
-    const org = u.organizationId ? `<span style="font-size:10px;background:rgba(59,127,237,.12);color:#3B7FED;border-radius:4px;padding:1px 6px;margin-left:4px;">Org</span>` : '';
+    let org = '';
+    if (u.organizationId && u.orgName) {
+      if (u.isOrgOwner) {
+        org = `<span style="font-size:10px;background:rgba(139,92,246,.12);color:#8B5CF6;border-radius:4px;padding:1px 6px;margin-left:4px;">Admin · ${u.orgName}</span>`;
+      } else {
+        org = `<span style="font-size:10px;background:rgba(59,127,237,.12);color:#3B7FED;border-radius:4px;padding:1px 6px;margin-left:4px;">Student · ${u.orgName}</span>`;
+      }
+    } else if (u.organizationId) {
+      org = `<span style="font-size:10px;background:rgba(59,127,237,.12);color:#3B7FED;border-radius:4px;padding:1px 6px;margin-left:4px;">Org</span>`;
+    }
     return `<tr id="user-row-${u.id}" style="border-bottom:1px solid rgba(226,232,240,.5);">
       <td style="padding:7px 10px;font-size:12px;color:var(--text-2);">${i + 1}</td>
       <td style="padding:7px 10px;font-size:12px;color:var(--text);font-weight:500;">${u.name || '—'}${org}</td>

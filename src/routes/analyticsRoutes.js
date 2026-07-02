@@ -241,9 +241,16 @@ router.get('/signups', async (req, res) => {
         FROM users
       `),
       pool.query(`
-        SELECT id, name, email, tier, created_at AS "createdAt", pro_since AS "proSince", organization_id AS "organizationId"
-        FROM users
-        ORDER BY created_at DESC
+        SELECT
+          u.id, u.name, u.email, u.tier,
+          u.created_at AS "createdAt",
+          u.pro_since  AS "proSince",
+          u.organization_id AS "organizationId",
+          o.name AS "orgName",
+          (o.owner_user_id = u.id) AS "isOrgOwner"
+        FROM users u
+        LEFT JOIN organizations o ON o.id = u.organization_id
+        ORDER BY u.created_at DESC
         LIMIT 300
       `),
       pool.query(`
