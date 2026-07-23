@@ -214,13 +214,15 @@ router.get('/settings', (req, res) => {
     schedule_time:    db.getConfig('schedule_time'),
     operator_email:   process.env.OPERATOR_EMAIL || '',
     base_url:         process.env.BASE_URL || '',
+    send_digest:      db.getConfig('send_digest') !== 'false',
   });
 });
 
 router.put('/settings', (req, res) => {
-  const { daily_send_limit, schedule_time } = req.body;
-  if (daily_send_limit) db.setConfig('daily_send_limit', daily_send_limit);
-  if (schedule_time)    db.setConfig('schedule_time', schedule_time);
+  const { daily_send_limit, schedule_time, send_digest } = req.body;
+  if (daily_send_limit)        db.setConfig('daily_send_limit', daily_send_limit);
+  if (schedule_time)           db.setConfig('schedule_time', schedule_time);
+  if (send_digest !== undefined) db.setConfig('send_digest', send_digest ? 'true' : 'false');
   res.json({ ok: true });
 });
 

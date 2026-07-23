@@ -72,11 +72,15 @@ async function runDailyJob() {
   }
 
   // 4. Send digest
-  console.log('[Scheduler] Sending daily digest…');
-  try {
-    await sendDailyDigest({ emailResults, replyResults, linkedInGenerated: linkedInCount });
-  } catch (err) {
-    console.error('[Scheduler] Digest send error:', err.message);
+  if (db.getConfig('send_digest') !== 'false') {
+    console.log('[Scheduler] Sending daily digest…');
+    try {
+      await sendDailyDigest({ emailResults, replyResults, linkedInGenerated: linkedInCount });
+    } catch (err) {
+      console.error('[Scheduler] Digest send error:', err.message);
+    }
+  } else {
+    console.log('[Scheduler] Digest disabled — skipping.');
   }
 
   // 5. Update run state

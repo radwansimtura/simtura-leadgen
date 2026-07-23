@@ -33,8 +33,13 @@ app.use(express.urlencoded({ extended: true }));
 
 // ── Sessions ──────────────────────────────────────────────────────────────────
 
+if (!process.env.SESSION_SECRET) {
+  console.error('[FATAL] SESSION_SECRET environment variable is not set. Set it in Render → Environment.');
+  process.exit(1);
+}
+
 app.use(session({
-  secret:            process.env.SESSION_SECRET || 'simtura-command-secret-change-me',
+  secret:            process.env.SESSION_SECRET,
   resave:            false,
   saveUninitialized: false,
   cookie: {
